@@ -1,0 +1,46 @@
+{
+  "id": "22C",
+  "name": "Blank From Name uses email-only contact match",
+  "category": "contact-matching",
+  "description": "Verifies that when the From Name is blank, the Case ContactId references a Contact matched by email address with no name-based filtering",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-22C-{{timestamp}}",
+    "textBody": "This email tests blank From Name behavior for contact matching.",
+    "htmlBody": "<p>This email tests blank From Name behavior for contact matching.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": ""
+  },
+  "sendMethod": "smtp",
+  "preconditions": [
+    {
+      "type": "ensure-contact",
+      "fields": {
+        "FirstName": "Test",
+        "LastName": "Contact Alpha",
+        "Email": "{{smtp_sender_email}}"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-22C-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-22C-{{timestamp}}" },
+          { "field": "ContactId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Contact",
+        "filter": "Id = '{{contactId}}'",
+        "assertions": [
+          { "field": "Email", "operator": "equals", "value": "{{smtp_sender_email}}" }
+        ]
+      }
+    ]
+  }
+}

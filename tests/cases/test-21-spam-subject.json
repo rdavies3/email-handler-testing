@@ -1,0 +1,37 @@
+{
+  "id": "21",
+  "name": "Spam term in subject blocks case creation",
+  "category": "spam-filter",
+  "description": "Verifies that an email with a spam filter term in the subject does not create a Case and a LostEmail record is created instead",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-21-{{timestamp}} UNSUBSCRIBE from list",
+    "textBody": "This email contains a spam trigger term in the subject line.",
+    "htmlBody": "<p>This email contains a spam trigger term in the subject line.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "no-case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-21-{{timestamp}} UNSUBSCRIBE from list'",
+        "assertions": [
+          { "field": "recordCount", "operator": "equals", "value": 0 }
+        ]
+      },
+      {
+        "object": "LostEmail__c",
+        "filter": "Subject__c = 'Test-21-{{timestamp}} UNSUBSCRIBE from list'",
+        "assertions": [
+          { "field": "Id", "operator": "not_null" },
+          { "field": "Subject__c", "operator": "equals", "value": "Test-21-{{timestamp}} UNSUBSCRIBE from list" }
+        ]
+      }
+    ]
+  }
+}

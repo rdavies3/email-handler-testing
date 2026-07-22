@@ -1,0 +1,53 @@
+{
+  "id": "16",
+  "name": "Large attachment stored as ContentVersion",
+  "category": "attachments",
+  "description": "Verifies that an email with a large attachment (~5.5MB) creates a Case and stores the attachment as a ContentVersion record with the correct file size",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-16-{{timestamp}}",
+    "textBody": "Email with a large PDF attachment for size verification.",
+    "htmlBody": "<p>Email with a large PDF attachment for size verification.</p>",
+    "attachments": [
+      {
+        "filename": "test-large.pdf",
+        "path": "generated-emails/attachments/test-large.pdf",
+        "contentType": "application/pdf",
+        "size": 5767168
+      }
+    ],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-16-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-16-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "ContentVersion",
+        "filter": "FirstPublishLocationId IN (SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = '{{caseId}}')",
+        "assertions": [
+          { "field": "Title", "operator": "equals", "value": "test-large" },
+          { "field": "ContentSize", "operator": "equals", "value": 5767168 },
+          { "field": "FileExtension", "operator": "equals", "value": "pdf" }
+        ]
+      }
+    ]
+  }
+}

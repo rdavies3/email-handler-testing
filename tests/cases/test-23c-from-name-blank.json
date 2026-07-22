@@ -1,0 +1,46 @@
+{
+  "id": "23C",
+  "name": "Blank From Name with alternate sender uses email-only match",
+  "category": "contact-matching",
+  "description": "Verifies that when the From Name is blank and an alternate sender is used, the Case ContactId references a Contact matched by email address with no name-based filtering",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-23C-{{timestamp}}",
+    "textBody": "This email tests blank From Name with an alternate sender for contact matching.",
+    "htmlBody": "<p>This email tests blank From Name with an alternate sender for contact matching.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": ""
+  },
+  "sendMethod": "smtp",
+  "preconditions": [
+    {
+      "type": "ensure-contact",
+      "fields": {
+        "FirstName": "Test",
+        "LastName": "Contact Beta",
+        "Email": "{{smtp_sender_email_alt}}"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-23C-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-23C-{{timestamp}}" },
+          { "field": "ContactId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Contact",
+        "filter": "Id = '{{contactId}}'",
+        "assertions": [
+          { "field": "Email", "operator": "equals", "value": "{{smtp_sender_email_alt}}" }
+        ]
+      }
+    ]
+  }
+}

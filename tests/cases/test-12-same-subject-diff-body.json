@@ -1,0 +1,43 @@
+{
+  "id": "12",
+  "name": "Same subject but different body creates two Cases",
+  "category": "duplicates",
+  "description": "Verifies that two emails with the same subject but different body content are not treated as duplicates and result in two separate Cases.",
+  "emails": [
+    {
+      "to": "{{primary_email}}",
+      "subject": "Test-12-SameSubject-{{timestamp}}",
+      "textBody": "This is the FIRST email body for test 12. It contains unique content that differs from the second email.",
+      "htmlBody": "<p>This is the FIRST email body for test 12. It contains unique content that differs from the second email.</p>",
+      "attachments": [],
+      "inlineImages": [],
+      "fromNameOverride": null
+    },
+    {
+      "to": "{{primary_email}}",
+      "subject": "Test-12-SameSubject-{{timestamp}}",
+      "textBody": "This is the SECOND email body for test 12. It has completely different content from the first email.",
+      "htmlBody": "<p>This is the SECOND email body for test 12. It has completely different content from the first email.</p>",
+      "attachments": [],
+      "inlineImages": [],
+      "fromNameOverride": null
+    }
+  ],
+  "sendMethod": "eml",
+  "sendDelay": 10,
+  "preconditions": [],
+  "verification": {
+    "type": "count-based",
+    "description": "After sending both emails, verify two Cases were created since the body content differs.",
+    "queries": [
+      {
+        "object": "Case",
+        "function": "count_cases_by_subject",
+        "filter": "Subject = 'Test-12-SameSubject-{{timestamp}}' AND CreatedDate >= {{startTime}}",
+        "assertions": [
+          { "field": "cnt", "operator": "equals", "value": 2 }
+        ]
+      }
+    ]
+  }
+}

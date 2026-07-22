@@ -1,0 +1,118 @@
+{
+  "title": "Email Handler Testing - Environment Configuration",
+  "description": "JSON Schema for validating the env-config.json file used by the email handler testing framework",
+  "type": "object",
+  "required": ["environments", "timing", "categories"],
+  "properties": {
+    "environments": {
+      "type": "object",
+      "description": "Environment definitions keyed by name (DEV, QA, UAT)",
+      "minProperties": 1,
+      "patternProperties": {
+        "^(DEV|QA|UAT)$": {
+          "type": "object",
+          "required": ["emailAddresses", "orgAlias", "orgWideEmailAddress", "acceptedAttachmentTypes", "spamFilterTerms"],
+          "properties": {
+            "emailAddresses": {
+              "type": "object",
+              "required": ["primary", "secondary", "tertiary"],
+              "properties": {
+                "primary": {
+                  "type": "string",
+                  "format": "email",
+                  "maxLength": 256,
+                  "description": "Primary email address for the environment"
+                },
+                "secondary": {
+                  "type": "string",
+                  "format": "email",
+                  "maxLength": 256,
+                  "description": "Secondary email address for the environment"
+                },
+                "tertiary": {
+                  "type": "string",
+                  "format": "email",
+                  "maxLength": 256,
+                  "description": "Tertiary email address for the environment"
+                }
+              },
+              "additionalProperties": false
+            },
+            "orgAlias": {
+              "type": "string",
+              "maxLength": 128,
+              "description": "SF CLI org alias for the environment"
+            },
+            "orgWideEmailAddress": {
+              "type": "string",
+              "format": "email",
+              "maxLength": 256,
+              "description": "Org-wide email address used for loop prevention testing"
+            },
+            "acceptedAttachmentTypes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^\\.[a-zA-Z0-9]+$"
+              },
+              "minItems": 1,
+              "description": "List of accepted file extensions (e.g., .txt, .pdf)"
+            },
+            "spamFilterTerms": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "List of terms that trigger the spam filter"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "timing": {
+      "type": "object",
+      "required": ["initialDelay", "maxRetries", "retryInterval"],
+      "properties": {
+        "initialDelay": {
+          "type": "number",
+          "minimum": 5,
+          "default": 30,
+          "description": "Seconds to wait before first verification query"
+        },
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5,
+          "description": "Maximum number of retry attempts"
+        },
+        "retryInterval": {
+          "type": "number",
+          "minimum": 2,
+          "default": 10,
+          "description": "Seconds between retry attempts"
+        }
+      },
+      "additionalProperties": false
+    },
+    "categories": {
+      "type": "object",
+      "description": "Mapping of category names to arrays of test case IDs",
+      "patternProperties": {
+        "^[a-z][a-z0-9-]*$": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]+[A-C]?$"
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

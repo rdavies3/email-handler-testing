@@ -1,0 +1,37 @@
+{
+  "id": "04",
+  "name": "Text body creates case with full description",
+  "category": "basic-creation",
+  "description": "Verifies that a plain text email body is stored in Case.Description with no characters omitted or truncated",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-04-{{timestamp}}",
+    "textBody": "This is the test body content for test 04. It verifies that the full email body text is stored in the Case description field without any truncation or omission of characters.",
+    "htmlBody": "<p>This is the test body content for test 04. It verifies that the full email body text is stored in the Case description field without any truncation or omission of characters.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-04-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-04-{{timestamp}}" },
+          { "field": "Description", "operator": "equals", "value": "This is the test body content for test 04. It verifies that the full email body text is stored in the Case description field without any truncation or omission of characters." }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      }
+    ]
+  }
+}

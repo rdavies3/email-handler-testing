@@ -1,0 +1,38 @@
+{
+  "id": "34",
+  "name": "Email body ~8MB observes behavior at size boundary",
+  "category": "body-size",
+  "description": "Verifies behavior when an email with a body of approximately 8MB (8,388,608 bytes) is sent. Records whether a Case is created or the email is rejected, and reports the observed outcome. This test may succeed or fail depending on Salesforce limits.",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-34-{{timestamp}}",
+    "textBody": "{{body_generator:size=8388608}}",
+    "htmlBody": null,
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "observe-outcome",
+    "description": "Record whether a Case is created or the email is rejected at the 8MB body size. Report observed outcome.",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-34-{{timestamp}}'",
+        "assertions": [
+          { "field": "Id", "operator": "report_observed", "value": "Case created or not at 8MB body size" }
+        ]
+      },
+      {
+        "object": "LostEmail__c",
+        "filter": "Subject__c = 'Test-34-{{timestamp}}'",
+        "assertions": [
+          { "field": "Id", "operator": "report_observed", "value": "LostEmail record presence at 8MB body size" }
+        ]
+      }
+    ],
+    "sizeThreshold": "8MB"
+  }
+}

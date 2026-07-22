@@ -1,0 +1,53 @@
+{
+  "id": "15",
+  "name": "Small attachment stored as ContentVersion",
+  "category": "attachments",
+  "description": "Verifies that an email with a small attachment (under 1MB) creates a Case and stores the attachment as a ContentVersion record with the correct file size",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-15-{{timestamp}}",
+    "textBody": "Email with a small text attachment for size verification.",
+    "htmlBody": "<p>Email with a small text attachment for size verification.</p>",
+    "attachments": [
+      {
+        "filename": "test-small.txt",
+        "path": "generated-emails/attachments/test-small.txt",
+        "contentType": "text/plain",
+        "size": 524288
+      }
+    ],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-15-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-15-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "ContentVersion",
+        "filter": "FirstPublishLocationId IN (SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = '{{caseId}}')",
+        "assertions": [
+          { "field": "Title", "operator": "equals", "value": "test-small" },
+          { "field": "ContentSize", "operator": "equals", "value": 524288 },
+          { "field": "FileExtension", "operator": "equals", "value": "txt" }
+        ]
+      }
+    ]
+  }
+}

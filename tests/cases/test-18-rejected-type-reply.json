@@ -1,0 +1,60 @@
+{
+  "id": "18",
+  "name": "Rejected attachment type on reply sends rejection email",
+  "category": "attachments",
+  "description": "Verifies that when a reply to an existing Case includes an attachment with a file type not in the accepted types list, a rejection email is sent to the sender and no ContentVersion record is created",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Re: Test-18-{{timestamp}} {{thread_id}}",
+    "textBody": "Reply with a rejected attachment type.",
+    "htmlBody": "<p>Reply with a rejected attachment type.</p>",
+    "attachments": [
+      {
+        "filename": "test-rejected.xyz",
+        "path": "generated-emails/attachments/test-rejected.xyz",
+        "contentType": "application/octet-stream",
+        "size": 10240
+      }
+    ],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [
+    {
+      "type": "create-case",
+      "fields": {
+        "Subject": "Test-18-{{timestamp}}",
+        "Status": "New",
+        "Origin": "Email"
+      }
+    }
+  ],
+  "verification": {
+    "type": "attachment-rejected",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-18-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-18-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "ContentVersion",
+        "filter": "FirstPublishLocationId IN (SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = '{{caseId}}')",
+        "assertions": [
+          { "field": "Id", "operator": "count_equals", "value": 0 }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}' AND Status = '3'",
+        "assertions": [
+          { "field": "Id", "operator": "not_null" }
+        ]
+      }
+    ]
+  }
+}

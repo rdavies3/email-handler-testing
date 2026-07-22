@@ -1,0 +1,45 @@
+{
+  "id": "08",
+  "name": "Reply to open Case updates status to Customer Replied",
+  "category": "lifecycle",
+  "description": "Verifies that replying to an open Case with a valid Case_Thread_ID changes the Case status to Customer Replied",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Re: Test-08-{{timestamp}} ref:{{thread_id}}",
+    "textBody": "This is a customer reply to an open case.",
+    "htmlBody": "<p>This is a customer reply to an open case.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [
+    {
+      "type": "create-case",
+      "fields": {
+        "Subject": "Test-08-{{timestamp}}",
+        "Status": "New",
+        "Description": "Precondition case for customer replied test"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-status-changed",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-08-{{timestamp}}'",
+        "assertions": [
+          { "field": "Status", "operator": "equals", "value": "Customer Replied" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "14",
+  "name": "Identical content from different senders creates two Cases",
+  "category": "duplicates",
+  "description": "Verifies that two emails with identical subject and body but sent from different senders are not treated as duplicates and result in two separate Cases.",
+  "emails": [
+    {
+      "to": "{{primary_email}}",
+      "subject": "Test-14-DiffSender-{{timestamp}}",
+      "textBody": "This is the identical content for test 14. Both emails have the same subject and body but different senders.",
+      "htmlBody": "<p>This is the identical content for test 14. Both emails have the same subject and body but different senders.</p>",
+      "attachments": [],
+      "inlineImages": [],
+      "fromNameOverride": null,
+      "fromAddress": "{{secondary_email}}"
+    },
+    {
+      "to": "{{primary_email}}",
+      "subject": "Test-14-DiffSender-{{timestamp}}",
+      "textBody": "This is the identical content for test 14. Both emails have the same subject and body but different senders.",
+      "htmlBody": "<p>This is the identical content for test 14. Both emails have the same subject and body but different senders.</p>",
+      "attachments": [],
+      "inlineImages": [],
+      "fromNameOverride": null,
+      "fromAddress": "{{tertiary_email}}"
+    }
+  ],
+  "sendMethod": "eml",
+  "sendDelay": 10,
+  "preconditions": [],
+  "verification": {
+    "type": "count-based",
+    "description": "After sending both emails from different senders, verify two Cases were created since the sender differs.",
+    "queries": [
+      {
+        "object": "Case",
+        "function": "count_cases_by_subject",
+        "filter": "Subject = 'Test-14-DiffSender-{{timestamp}}' AND CreatedDate >= {{startTime}}",
+        "assertions": [
+          { "field": "cnt", "operator": "equals", "value": 2 }
+        ]
+      }
+    ]
+  }
+}

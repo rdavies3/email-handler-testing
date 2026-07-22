@@ -1,0 +1,41 @@
+{
+  "id": "29",
+  "name": "Existing Case with null checksum does not prevent new Case creation",
+  "category": "checksum-null",
+  "description": "Verifies that when a Case exists without a checksum value (created via SF CLI, bypassing email handler) and an email with identical subject and body is received, a new Case is still created because the null checksum does not match.",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-29-Checksum-{{timestamp}}",
+    "textBody": "This is the body for the checksum null handling test. It will be identical to the precondition Case content.",
+    "htmlBody": "<p>This is the body for the checksum null handling test. It will be identical to the precondition Case content.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [
+    {
+      "type": "create-case-null-checksum",
+      "fields": {
+        "Subject": "Test-29-Checksum-{{timestamp}}",
+        "Description": "This is the body for the checksum null handling test. It will be identical to the precondition Case content.",
+        "Status": "New",
+        "Origin": "Web"
+      }
+    }
+  ],
+  "verification": {
+    "type": "count-based",
+    "description": "After sending the email, verify that a second Case was created with the same subject (count = 2: one from precondition, one from email).",
+    "queries": [
+      {
+        "object": "Case",
+        "function": "count_cases_by_subject",
+        "filter": "Subject = 'Test-29-Checksum-{{timestamp}}' AND CreatedDate >= {{startTime}}",
+        "assertions": [
+          { "field": "cnt", "operator": "equals", "value": 2 }
+        ]
+      }
+    ]
+  }
+}

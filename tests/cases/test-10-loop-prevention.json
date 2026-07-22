@@ -1,0 +1,44 @@
+{
+  "id": "10",
+  "name": "Loop prevention blocks Case creation from org-wide email sender",
+  "category": "loop-prevention",
+  "description": "Verifies that when the sender address matches the org-wide email address, no new Case is created (prevents infinite email loops)",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "from": "{{org_wide_email}}",
+    "subject": "Test-10-{{timestamp}} Loop Prevention Test",
+    "textBody": "This email is sent from the org-wide address and should not create a Case.",
+    "htmlBody": "<p>This email is sent from the org-wide address and should not create a Case.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "no-case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-10-{{timestamp}} Loop Prevention Test'",
+        "assertions": [
+          { "field": "COUNT", "operator": "equals", "value": 0 }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "Subject = 'Test-10-{{timestamp}} Loop Prevention Test' AND Status = '3'",
+        "assertions": [
+          { "field": "COUNT", "operator": "equals", "value": 0 }
+        ]
+      },
+      {
+        "object": "LostEmail__c",
+        "filter": "Subject__c = 'Test-10-{{timestamp}} Loop Prevention Test' AND Sender__c = '{{org_wide_email}}'",
+        "assertions": [
+          { "field": "Id", "operator": "any", "note": "May or may not exist depending on whether spam filter captures it or silently discards" }
+        ]
+      }
+    ]
+  }
+}

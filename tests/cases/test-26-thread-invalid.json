@@ -1,0 +1,37 @@
+{
+  "id": "26",
+  "name": "Invalid thread ID creates new Case",
+  "category": "threading",
+  "description": "Verifies that when an email contains a syntactically valid but non-existent Case_Thread_ID, a new Case is created",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-26-{{timestamp}} ref:_00000000._00000000:ref",
+    "textBody": "This email contains an invalid thread ID that does not match any existing Case.",
+    "htmlBody": "<p>This email contains an invalid thread ID that does not match any existing Case.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-26-{{timestamp}} ref:_00000000._00000000:ref'",
+        "assertions": [
+          { "field": "Id", "operator": "not_null" },
+          { "field": "Subject", "operator": "equals", "value": "Test-26-{{timestamp}} ref:_00000000._00000000:ref" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      }
+    ]
+  }
+}

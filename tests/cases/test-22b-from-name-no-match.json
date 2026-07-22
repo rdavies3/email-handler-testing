@@ -1,0 +1,46 @@
+{
+  "id": "22B",
+  "name": "Non-matching From Name falls back to email-only match",
+  "category": "contact-matching",
+  "description": "Verifies that when a manipulated From Name does not match any Contact's FirstName and LastName, the Case ContactId references a Contact matched by email address only",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-22B-{{timestamp}}",
+    "textBody": "This email tests From Name that does not match any existing Contact name.",
+    "htmlBody": "<p>This email tests From Name that does not match any existing Contact name.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": "Nonexistent Person Xyz"
+  },
+  "sendMethod": "smtp",
+  "preconditions": [
+    {
+      "type": "ensure-contact",
+      "fields": {
+        "FirstName": "Test",
+        "LastName": "Contact Alpha",
+        "Email": "{{smtp_sender_email}}"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-22B-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-22B-{{timestamp}}" },
+          { "field": "ContactId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Contact",
+        "filter": "Id = '{{contactId}}'",
+        "assertions": [
+          { "field": "Email", "operator": "equals", "value": "{{smtp_sender_email}}" }
+        ]
+      }
+    ]
+  }
+}

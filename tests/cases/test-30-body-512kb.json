@@ -1,0 +1,37 @@
+{
+  "id": "30",
+  "name": "Email body ~512KB creates Case and EmailMessage",
+  "category": "body-size",
+  "description": "Verifies that an email with a body of approximately 512KB (524,288 bytes) creates a Case and an associated EmailMessage record.",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-30-{{timestamp}}",
+    "textBody": "{{body_generator:size=524288}}",
+    "htmlBody": null,
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-30-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-30-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      }
+    ]
+  }
+}

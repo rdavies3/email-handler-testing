@@ -1,0 +1,47 @@
+{
+  "id": "25",
+  "name": "Thread ID in body associates email with existing Case",
+  "category": "threading",
+  "description": "Verifies that when an email body contains a valid Case_Thread_ID referencing a pre-existing Case, the email is threaded to that Case and no new Case is created",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-25-{{timestamp}} Unrelated Subject",
+    "textBody": "This is a reply that should thread to the existing case.\n\nref:_{{thread_id}}:ref",
+    "htmlBody": "<p>This is a reply that should thread to the existing case.</p><p>ref:_{{thread_id}}:ref</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [
+    {
+      "type": "create-case",
+      "fields": {
+        "Subject": "Test-25-{{timestamp}} Original Case",
+        "Status": "New",
+        "Origin": "Email"
+      },
+      "outputs": ["caseId", "thread_id"]
+    }
+  ],
+  "verification": {
+    "type": "no-new-case",
+    "queries": [
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "equals", "value": "{{caseId}}" },
+          { "field": "TextBody", "operator": "contains", "value": "ref:" }
+        ]
+      },
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-25-{{timestamp}} Unrelated Subject'",
+        "assertions": [
+          { "field": "recordCount", "operator": "equals", "value": 0 }
+        ]
+      }
+    ]
+  }
+}

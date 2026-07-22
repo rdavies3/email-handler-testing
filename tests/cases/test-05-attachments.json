@@ -1,0 +1,50 @@
+{
+  "id": "05",
+  "name": "Attachments stored as ContentVersion records",
+  "category": "basic-creation",
+  "description": "Verifies that email attachments are stored as distinct ContentVersion records linked to the Case via ContentDocumentLink",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-05-{{timestamp}}",
+    "textBody": "This email has attachments for test 05.",
+    "htmlBody": "<p>This email has attachments for test 05.</p>",
+    "attachments": [
+      {
+        "filename": "test-small.txt",
+        "path": "generated-emails/attachments/test-small.txt",
+        "contentType": "text/plain"
+      },
+      {
+        "filename": "test-1mb.pdf",
+        "path": "generated-emails/attachments/test-1mb.pdf",
+        "contentType": "application/pdf"
+      }
+    ],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-05-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-05-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "ContentVersion",
+        "filter": "FirstPublishLocationId IN (SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = '{{caseId}}')",
+        "assertions": [
+          { "field": "recordCount", "operator": "equals", "value": 2 },
+          { "field": "Title", "operator": "contains", "value": "test-small" },
+          { "field": "Title", "operator": "contains", "value": "test-1mb" }
+        ]
+      }
+    ]
+  }
+}
