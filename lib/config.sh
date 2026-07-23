@@ -32,6 +32,48 @@ _json_get_number() {
   echo "$json" | grep -o "\"${key}\"[[:space:]]*:[[:space:]]*[0-9]*" | head -1 | sed 's/.*:[[:space:]]*//'
 }
 
+# --- Config path resolution ---
+# _resolve_config_paths
+#   Calls node src/config-resolver.js --paths to determine where config files live.
+#   Sets CONFIG_FILE and CREDENTIALS_FILE variables.
+#   Falls back to repo-root paths if the resolver fails (backward compatibility).
+#   Returns 0 always (fallback ensures success).
+_resolve_config_paths() {
+  local resolver_output
+  local exit_code
+
+  resolver_output=$(node "${PROJECT_ROOT}/src/config-resolver.js" --paths 2>/dev/null)
+  exit_code=$?
+
+  if [ $exit_code -ne 0 ]; then
+    # Fallback: use repo-root paths (backward compatibility)
+    CONFIG_FILE="${PROJECT_ROOT}/env-config.json"
+    CREDENTIALS_FILE="${PROJECT_ROOT}/credentials.json"
+    export CONFIG_FILE CREDENTIALS_FILE
+    return 0
+  fi
+
+  # Parse JSON output for paths
+  local resolved_config
+  local resolved_credentials
+
+  resolved_config=$(_json_get_value "$resolver_output" "configPath")
+  resolved_credentials=$(_json_get_value "$resolver_output" "credentialsPath")
+
+  # If parsing failed, fall back to repo-root paths
+  if [ -z "$resolved_config" ] || [ -z "$resolved_credentials" ]; then
+    CONFIG_FILE="${PROJECT_ROOT}/env-config.json"
+    CREDENTIALS_FILE="${PROJECT_ROOT}/credentials.json"
+    export CONFIG_FILE CREDENTIALS_FILE
+    return 0
+  fi
+
+  CONFIG_FILE="$resolved_config"
+  CREDENTIALS_FILE="$resolved_credentials"
+  export CONFIG_FILE CREDENTIALS_FILE
+  return 0
+}
+
 # --- Main config loading function ---
 # load_config ENV_NAME
 #   Calls node src/config-loader.js and exports shell variables.
@@ -54,9 +96,8 @@ load_config() {
     return 1
   fi
 
-  # Build paths to config files
-  local config_file="${PROJECT_ROOT}/env-config.json"
-  local credentials_file="${PROJECT_ROOT}/credentials.json"
+  # Resolve config file locations using config-resolver.js
+  _resolve_config_paths
 
   # Call config-loader.js and capture output
   local config_output
@@ -64,8 +105,8 @@ load_config() {
 
   config_output=$(node "${PROJECT_ROOT}/src/config-loader.js" \
     --env "$env_name" \
-    --config "$config_file" \
-    --credentials "$credentials_file" 2>&1)
+    --config "$CONFIG_FILE" \
+    --credentials "$CREDENTIALS_FILE" 2>&1)
   exit_code=$?
 
   if [ $exit_code -ne 0 ]; then

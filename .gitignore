@@ -15,3 +15,6 @@ node_modules/
 
 # Environment-specific config (contains org aliases and email addresses)
 env-config.json
+
+# Config pointer file (points to external config directory)
+.config-path
