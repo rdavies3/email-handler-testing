@@ -1,0 +1,45 @@
+{
+  "id": "07",
+  "name": "Reply to closed Case reopens it",
+  "category": "lifecycle",
+  "description": "Verifies that replying to a closed Case with a valid Case_Thread_ID changes the Case status to Reopened",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Re: Test-07-{{timestamp}} ref:{{thread_id}}",
+    "textBody": "This is a reply to a closed case. Please reopen it.",
+    "htmlBody": "<p>This is a reply to a closed case. Please reopen it.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [
+    {
+      "type": "create-case",
+      "fields": {
+        "Subject": "Test-07-{{timestamp}}",
+        "Status": "Closed",
+        "Description": "Precondition case for reopen test"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-status-changed",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-07-{{timestamp}}'",
+        "assertions": [
+          { "field": "Status", "operator": "equals", "value": "Reopened" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "22A",
+  "name": "Matching From Name associates correct Contact",
+  "category": "contact-matching",
+  "description": "Verifies that when a manipulated From Name matches an existing Contact's FirstName and LastName, the Case ContactId references that Contact",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-22A-{{timestamp}}",
+    "textBody": "This email tests From Name matching with a known Contact name.",
+    "htmlBody": "<p>This email tests From Name matching with a known Contact name.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": "Test Contact Alpha"
+  },
+  "sendMethod": "smtp",
+  "preconditions": [
+    {
+      "type": "ensure-contact",
+      "fields": {
+        "FirstName": "Test",
+        "LastName": "Contact Alpha",
+        "Email": "{{smtp_sender_email}}"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-22A-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-22A-{{timestamp}}" },
+          { "field": "ContactId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Contact",
+        "filter": "Id = '{{contactId}}'",
+        "assertions": [
+          { "field": "FirstName", "operator": "equals", "value": "Test" },
+          { "field": "LastName", "operator": "equals", "value": "Contact Alpha" }
+        ]
+      }
+    ]
+  }
+}

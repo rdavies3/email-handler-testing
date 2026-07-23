@@ -1,0 +1,67 @@
+{
+  "id": "19",
+  "name": "Accepted attachment type on reply stored with no rejection",
+  "category": "attachments",
+  "description": "Verifies that when a reply to an existing Case includes an attachment with a valid file type, the attachment is stored as an Attachment record linked to the EmailMessage, no rejection email is sent, and no new Case is created",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Re: Test-19-{{timestamp}} {{thread_id}}",
+    "textBody": "Reply with an accepted attachment type.",
+    "htmlBody": "<p>Reply with an accepted attachment type.</p>",
+    "attachments": [
+      {
+        "filename": "test-small.txt",
+        "path": "generated-emails/attachments/test-small.txt",
+        "contentType": "text/plain",
+        "size": 524288
+      }
+    ],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [
+    {
+      "type": "create-case",
+      "fields": {
+        "Subject": "Test-19-{{timestamp}}",
+        "Status": "New"
+      }
+    }
+  ],
+  "verification": {
+    "type": "attachment-accepted",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-19-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-19-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Attachment",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "Name", "operator": "equals", "value": "test-small.txt" },
+          { "field": "BodyLength", "operator": "equals", "value": 524288 }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}' AND Status = '3'",
+        "assertions": [
+          { "field": "recordCount", "operator": "equals", "value": 0 }
+        ]
+      },
+      {
+        "object": "Case",
+        "filter": "Subject LIKE '%Test-19-{{timestamp}}%'",
+        "assertions": [
+          { "field": "recordCount", "operator": "equals", "value": 1 }
+        ]
+      }
+    ]
+  }
+}

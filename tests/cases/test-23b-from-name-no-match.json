@@ -1,0 +1,46 @@
+{
+  "id": "23B",
+  "name": "Non-matching From Name with alternate sender falls back to email match",
+  "category": "contact-matching",
+  "description": "Verifies that when a manipulated From Name does not match any Contact and an alternate sender is used, the Case ContactId references a Contact matched by email address only",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-23B-{{timestamp}}",
+    "textBody": "This email tests non-matching From Name with an alternate sender email.",
+    "htmlBody": "<p>This email tests non-matching From Name with an alternate sender email.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": "Unknown Person Abc"
+  },
+  "sendMethod": "smtp",
+  "preconditions": [
+    {
+      "type": "ensure-contact",
+      "fields": {
+        "FirstName": "Test",
+        "LastName": "Contact Beta",
+        "Email": "{{smtp_sender_email_alt}}"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-23B-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-23B-{{timestamp}}" },
+          { "field": "ContactId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Contact",
+        "filter": "Id = '{{contactId}}'",
+        "assertions": [
+          { "field": "Email", "operator": "equals", "value": "{{smtp_sender_email_alt}}" }
+        ]
+      }
+    ]
+  }
+}

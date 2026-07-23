@@ -1,0 +1,37 @@
+{
+  "id": "03",
+  "name": "Empty subject creates case with sender-based subject",
+  "category": "basic-creation",
+  "description": "Verifies that an email with an empty subject creates a Case record with subject set to 'Email Received From: <sender email address>'",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "",
+    "textBody": "This is the body content for test 03 with an empty subject.",
+    "htmlBody": "<p>This is the body content for test 03 with an empty subject.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject LIKE 'Email Received From:%' AND CreatedDate >= {{startTime}}",
+        "assertions": [
+          { "field": "Subject", "operator": "starts_with", "value": "Email Received From:" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      }
+    ]
+  }
+}

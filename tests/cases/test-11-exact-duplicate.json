@@ -1,0 +1,43 @@
+{
+  "id": "11",
+  "name": "Exact duplicate email creates only one Case",
+  "category": "duplicates",
+  "description": "Verifies that two identical emails (same subject, body, and sender) sent within 60 seconds result in only one Case being created due to deduplication logic.",
+  "emails": [
+    {
+      "to": "{{primary_email}}",
+      "subject": "Test-11-Duplicate-{{timestamp}}",
+      "textBody": "This is the duplicate detection test body for test 11. The content is identical in both emails.",
+      "htmlBody": "<p>This is the duplicate detection test body for test 11. The content is identical in both emails.</p>",
+      "attachments": [],
+      "inlineImages": [],
+      "fromNameOverride": null
+    },
+    {
+      "to": "{{primary_email}}",
+      "subject": "Test-11-Duplicate-{{timestamp}}",
+      "textBody": "This is the duplicate detection test body for test 11. The content is identical in both emails.",
+      "htmlBody": "<p>This is the duplicate detection test body for test 11. The content is identical in both emails.</p>",
+      "attachments": [],
+      "inlineImages": [],
+      "fromNameOverride": null
+    }
+  ],
+  "sendMethod": "eml",
+  "sendDelay": 10,
+  "preconditions": [],
+  "verification": {
+    "type": "count-based",
+    "description": "After sending both emails, verify only one Case was created with the shared subject.",
+    "queries": [
+      {
+        "object": "Case",
+        "function": "count_cases_by_subject",
+        "filter": "Subject = 'Test-11-Duplicate-{{timestamp}}' AND CreatedDate >= {{startTime}}",
+        "assertions": [
+          { "field": "cnt", "operator": "equals", "value": 1 }
+        ]
+      }
+    ]
+  }
+}

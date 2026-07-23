@@ -1,0 +1,20 @@
+# Kiro spec directory
+.kiro/
+
+# Credentials (contains SMTP passwords)
+credentials.json
+
+# Generated test email files
+generated-emails/
+
+# Node.js dependencies
+node_modules/
+
+# OS files
+.DS_Store
+
+# Environment-specific config (contains org aliases and email addresses)
+env-config.json
+
+# Config pointer file (points to external config directory)
+.config-path

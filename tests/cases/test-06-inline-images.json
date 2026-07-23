@@ -1,0 +1,45 @@
+{
+  "id": "06",
+  "name": "Inline images stored as Attachment records",
+  "category": "basic-creation",
+  "description": "Verifies that inline images are stored as Attachment records linked to the EmailMessage",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-06-{{timestamp}}",
+    "textBody": "This email has inline images for test 06.",
+    "htmlBody": "<p>This email has an inline image:</p><img src=\"cid:test-image-01\" alt=\"Test Image\" />",
+    "attachments": [],
+    "inlineImages": [
+      {
+        "filename": "test-2mb.png",
+        "path": "generated-emails/attachments/test-2mb.png",
+        "contentType": "image/png",
+        "contentId": "test-image-01"
+      }
+    ],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-06-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-06-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Attachment",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "recordCount", "operator": "greater_than_or_equal", "value": 1 },
+          { "field": "Name", "operator": "contains", "value": ".png" }
+        ]
+      }
+    ]
+  }
+}

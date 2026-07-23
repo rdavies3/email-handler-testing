@@ -1,0 +1,55 @@
+{
+  "id": "28",
+  "name": "Long body (34k chars) with multiple matching Contacts",
+  "category": "long-body",
+  "description": "Verifies that a 34,000-character email body sent from an address matching multiple Contacts creates a Case and verifies which ContactId is associated. The EmailMessage stores the full body content.",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-28-{{timestamp}}",
+    "textBody": "{{body_generator:chars=34000}}",
+    "htmlBody": null,
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [
+    {
+      "type": "ensure-contact",
+      "fields": {
+        "FirstName": "LongBody",
+        "LastName": "MultiContactA",
+        "Email": "{{sender_email}}"
+      }
+    },
+    {
+      "type": "ensure-contact",
+      "fields": {
+        "FirstName": "LongBody",
+        "LastName": "MultiContactB",
+        "Email": "{{sender_email}}"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-28-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-28-{{timestamp}}" },
+          { "field": "ContactId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" },
+          { "field": "TextBody", "operator": "char_length_equals", "value": 34000 }
+        ]
+      }
+    ]
+  }
+}

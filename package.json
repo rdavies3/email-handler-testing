@@ -1,0 +1,29 @@
+{
+  "name": "email-handler-testing",
+  "version": "1.0.0",
+  "description": "Automated testing framework for Salesforce Email-to-Case handler (CaseInboundEmailHandler.cls)",
+  "main": "src/config-loader.js",
+  "scripts": {
+    "test": "vitest run",
+    "generate-data": "node src/attachment-generator.js --output generated-emails/attachments/"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "salesforce",
+    "email-to-case",
+    "testing",
+    "automation"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nodemailer": "^6.9.0",
+    "pdfkit": "^0.19.1"
+  },
+  "devDependencies": {
+    "fast-check": "^3.0.0",
+    "vitest": "^1.6.0"
+  }
+}

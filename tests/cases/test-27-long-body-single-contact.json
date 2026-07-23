@@ -1,0 +1,55 @@
+{
+  "id": "27",
+  "name": "Long body (34k chars) truncated at 32k in Case description",
+  "category": "long-body",
+  "description": "Verifies that a 34,000-character email body sent from an address matching a single Contact creates a Case with the description truncated to the first 32,000 characters, and an EmailMessage is linked to the Case. No LostEmail record is created.",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-27-{{timestamp}}",
+    "textBody": "{{body_generator:chars=34000}}",
+    "htmlBody": null,
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [
+    {
+      "type": "ensure-contact",
+      "fields": {
+        "FirstName": "LongBody",
+        "LastName": "SingleContact",
+        "Email": "{{sender_email}}"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-27-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-27-{{timestamp}}" },
+          { "field": "Description", "operator": "char_length_equals", "value": 32000 },
+          { "field": "ContactId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" },
+          { "field": "TextBody", "operator": "char_length_equals", "value": 34000 }
+        ]
+      },
+      {
+        "object": "LostEmail__c",
+        "filter": "Subject__c = 'Test-27-{{timestamp}}'",
+        "assertions": [
+          { "field": "recordCount", "operator": "equals", "value": 0 }
+        ]
+      }
+    ]
+  }
+}

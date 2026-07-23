@@ -1,0 +1,59 @@
+{
+  "id": "20",
+  "name": "p7s attachment dropped while valid attachments stored",
+  "category": "attachments",
+  "description": "Verifies that when an email includes both a .p7s attachment and a valid attachment, the .p7s is silently dropped while the valid attachment is stored as an Attachment record",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-20-{{timestamp}}",
+    "textBody": "Email with both a p7s signature and a valid text attachment.",
+    "htmlBody": "<p>Email with both a p7s signature and a valid text attachment.</p>",
+    "attachments": [
+      {
+        "filename": "test-signature.p7s",
+        "path": "generated-emails/attachments/test-signature.p7s",
+        "contentType": "application/pkcs7-signature",
+        "size": 2048
+      },
+      {
+        "filename": "test-small.txt",
+        "path": "generated-emails/attachments/test-small.txt",
+        "contentType": "text/plain",
+        "size": 524288
+      }
+    ],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-20-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-20-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Attachment",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "recordCount", "operator": "equals", "value": 1 },
+          { "field": "Name", "operator": "equals", "value": "test-small.txt" },
+          { "field": "BodyLength", "operator": "equals", "value": 524288 }
+        ]
+      }
+    ]
+  }
+}

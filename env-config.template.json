@@ -1,0 +1,55 @@
+{
+  "environments": {
+    "DEV": {
+      "emailAddresses": {
+        "primary": "dev-cases@example.com",
+        "secondary": "dev-cases-alt@example.com",
+        "tertiary": "dev-cases-third@example.com"
+      },
+      "orgAlias": "DevSandbox",
+      "orgWideEmailAddress": "noreply-dev@example.com",
+      "acceptedAttachmentTypes": [".txt", ".pdf", ".png", ".jpg", ".docx", ".xlsx"],
+      "spamFilterTerms": ["UNSUBSCRIBE", "FREE OFFER"]
+    },
+    "QA": {
+      "emailAddresses": {
+        "primary": "qa-cases@example.com",
+        "secondary": "qa-cases-alt@example.com",
+        "tertiary": "qa-cases-third@example.com"
+      },
+      "orgAlias": "QaSandbox",
+      "orgWideEmailAddress": "noreply-qa@example.com",
+      "acceptedAttachmentTypes": [".txt", ".pdf", ".png", ".jpg", ".docx", ".xlsx"],
+      "spamFilterTerms": ["UNSUBSCRIBE", "FREE OFFER"]
+    },
+    "UAT": {
+      "emailAddresses": {
+        "primary": "uat-cases@example.com",
+        "secondary": "uat-cases-alt@example.com",
+        "tertiary": "uat-cases-third@example.com"
+      },
+      "orgAlias": "UatSandbox",
+      "orgWideEmailAddress": "noreply-uat@example.com",
+      "acceptedAttachmentTypes": [".txt", ".pdf", ".png", ".jpg", ".docx", ".xlsx"],
+      "spamFilterTerms": ["UNSUBSCRIBE", "FREE OFFER"]
+    }
+  },
+  "timing": {
+    "initialDelay": 30,
+    "maxRetries": 5,
+    "retryInterval": 10
+  },
+  "categories": {
+    "basic-creation": ["02", "03", "04", "05", "06"],
+    "lifecycle": ["07", "08", "09"],
+    "loop-prevention": ["10"],
+    "duplicates": ["11", "12", "13", "14"],
+    "attachments": ["15", "16", "17", "18", "19", "20"],
+    "spam-filter": ["21"],
+    "threading": ["24", "25", "26"],
+    "contact-matching": ["22A", "22B", "22C", "23A", "23B", "23C"],
+    "long-body": ["27", "28"],
+    "checksum-null": ["29"],
+    "body-size": ["30", "31", "32", "33", "34", "35"]
+  }
+}

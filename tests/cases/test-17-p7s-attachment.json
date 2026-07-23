@@ -1,0 +1,51 @@
+{
+  "id": "17",
+  "name": "p7s attachment dropped with no Attachment record",
+  "category": "attachments",
+  "description": "Verifies that an email with a .p7s file attachment creates a Case but the .p7s attachment is silently dropped — no Attachment record is created and no rejection email is sent",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-17-{{timestamp}}",
+    "textBody": "Email with a p7s signature attachment that should be silently dropped.",
+    "htmlBody": "<p>Email with a p7s signature attachment that should be silently dropped.</p>",
+    "attachments": [
+      {
+        "filename": "test-signature.p7s",
+        "path": "generated-emails/attachments/test-signature.p7s",
+        "contentType": "application/pkcs7-signature",
+        "size": 2048
+      }
+    ],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-17-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-17-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Attachment",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "recordCount", "operator": "equals", "value": 0 }
+        ]
+      }
+    ]
+  }
+}

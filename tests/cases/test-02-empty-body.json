@@ -1,0 +1,37 @@
+{
+  "id": "02",
+  "name": "Empty body creates case with subject",
+  "category": "basic-creation",
+  "description": "Verifies that an email with an empty body creates a Case record with the subject field matching the email subject exactly",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-02-{{timestamp}}",
+    "textBody": "",
+    "htmlBody": "",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-02-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-02-{{timestamp}}" },
+          { "field": "Id", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" }
+        ]
+      }
+    ]
+  }
+}

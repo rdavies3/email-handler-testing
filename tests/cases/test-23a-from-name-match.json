@@ -1,0 +1,47 @@
+{
+  "id": "23A",
+  "name": "Matching From Name with alternate contact associates correctly",
+  "category": "contact-matching",
+  "description": "Verifies that when a manipulated From Name matches a different Contact's FirstName and LastName (alternate sender/contact), the Case ContactId references that matching Contact",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Test-23A-{{timestamp}}",
+    "textBody": "This email tests From Name matching with an alternate Contact and sender.",
+    "htmlBody": "<p>This email tests From Name matching with an alternate Contact and sender.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": "Test Contact Beta"
+  },
+  "sendMethod": "smtp",
+  "preconditions": [
+    {
+      "type": "ensure-contact",
+      "fields": {
+        "FirstName": "Test",
+        "LastName": "Contact Beta",
+        "Email": "{{smtp_sender_email_alt}}"
+      }
+    }
+  ],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'Test-23A-{{timestamp}}'",
+        "assertions": [
+          { "field": "Subject", "operator": "equals", "value": "Test-23A-{{timestamp}}" },
+          { "field": "ContactId", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "Contact",
+        "filter": "Id = '{{contactId}}'",
+        "assertions": [
+          { "field": "FirstName", "operator": "equals", "value": "Test" },
+          { "field": "LastName", "operator": "equals", "value": "Contact Beta" }
+        ]
+      }
+    ]
+  }
+}

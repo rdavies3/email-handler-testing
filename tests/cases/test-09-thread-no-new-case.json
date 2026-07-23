@@ -1,0 +1,46 @@
+{
+  "id": "09",
+  "name": "Reply threads to existing Case without creating new Case",
+  "category": "lifecycle",
+  "description": "Verifies that a reply email with a valid Case_Thread_ID is threaded to the existing Case and no new Case is created",
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "Re: Test-09-{{timestamp}} ref:{{thread_id}}",
+    "textBody": "This reply should thread to the existing case, not create a new one.",
+    "htmlBody": "<p>This reply should thread to the existing case, not create a new one.</p>",
+    "attachments": [],
+    "inlineImages": [],
+    "fromNameOverride": null
+  },
+  "sendMethod": "eml",
+  "preconditions": [
+    {
+      "type": "create-case",
+      "fields": {
+        "Subject": "Test-09-{{timestamp}}",
+        "Status": "New",
+        "Description": "Precondition case for threading test"
+      }
+    }
+  ],
+  "verification": {
+    "type": "no-new-case",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject LIKE 'Test-09-{{timestamp}}%'",
+        "assertions": [
+          { "field": "COUNT", "operator": "equals", "value": 1 }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}'",
+        "assertions": [
+          { "field": "ParentId", "operator": "not_null" },
+          { "field": "Subject", "operator": "contains", "value": "Test-09-{{timestamp}}" }
+        ]
+      }
+    ]
+  }
+}

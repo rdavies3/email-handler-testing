@@ -1,0 +1,51 @@
+{
+  "id": "13",
+  "name": "Different subject but same body creates two Cases",
+  "category": "duplicates",
+  "description": "Verifies that two emails with different subjects but identical body content are not treated as duplicates and result in two separate Cases.",
+  "emails": [
+    {
+      "to": "{{primary_email}}",
+      "subject": "Test-13-SubjectA-{{timestamp}}",
+      "textBody": "This is the identical body content used in both emails for test 13. The deduplication logic should compare subjects.",
+      "htmlBody": "<p>This is the identical body content used in both emails for test 13. The deduplication logic should compare subjects.</p>",
+      "attachments": [],
+      "inlineImages": [],
+      "fromNameOverride": null
+    },
+    {
+      "to": "{{primary_email}}",
+      "subject": "Test-13-SubjectB-{{timestamp}}",
+      "textBody": "This is the identical body content used in both emails for test 13. The deduplication logic should compare subjects.",
+      "htmlBody": "<p>This is the identical body content used in both emails for test 13. The deduplication logic should compare subjects.</p>",
+      "attachments": [],
+      "inlineImages": [],
+      "fromNameOverride": null
+    }
+  ],
+  "sendMethod": "eml",
+  "sendDelay": 10,
+  "preconditions": [],
+  "verification": {
+    "type": "count-based",
+    "description": "After sending both emails, verify two Cases were created since the subjects differ. Query each subject individually.",
+    "queries": [
+      {
+        "object": "Case",
+        "function": "count_cases_by_subject",
+        "filter": "Subject = 'Test-13-SubjectA-{{timestamp}}' AND CreatedDate >= {{startTime}}",
+        "assertions": [
+          { "field": "cnt", "operator": "equals", "value": 1 }
+        ]
+      },
+      {
+        "object": "Case",
+        "function": "count_cases_by_subject",
+        "filter": "Subject = 'Test-13-SubjectB-{{timestamp}}' AND CreatedDate >= {{startTime}}",
+        "assertions": [
+          { "field": "cnt", "operator": "equals", "value": 1 }
+        ]
+      }
+    ]
+  }
+}
