@@ -68,7 +68,7 @@ npm install
 # The Kiro setup agent walks you through this interactively
 
 # 4. Authenticate SF CLI to your sandbox(es)
-sf org login web --alias EntQA          # DEV sandbox
+sf org login web --alias EntDevSB       # DEV sandbox
 sf org login web --alias entQaSB        # QA sandbox
 sf org login web --alias entUatSB       # UAT sandbox
 
