@@ -1,8 +1,8 @@
 {
   "id": "17",
-  "name": "p7s attachment dropped with no ContentVersion",
+  "name": "p7s attachment dropped with no Attachment record",
   "category": "attachments",
-  "description": "Verifies that an email with a .p7s file attachment creates a Case but the .p7s attachment is silently dropped — no ContentVersion record is created and no rejection email is sent",
+  "description": "Verifies that an email with a .p7s file attachment creates a Case but the .p7s attachment is silently dropped — no Attachment record is created and no rejection email is sent",
   "emailProperties": {
     "to": "{{primary_email}}",
     "subject": "Test-17-{{timestamp}}",
@@ -40,10 +40,10 @@
         ]
       },
       {
-        "object": "ContentVersion",
-        "filter": "FirstPublishLocationId IN (SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = '{{caseId}}')",
+        "object": "Attachment",
+        "filter": "ParentId = '{{caseId}}'",
         "assertions": [
-          { "field": "Id", "operator": "count_equals", "value": 0 }
+          { "field": "recordCount", "operator": "equals", "value": 0 }
         ]
       }
     ]

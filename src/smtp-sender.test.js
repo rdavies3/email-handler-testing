@@ -35,18 +35,22 @@ describe('smtp-sender', () => {
 
   describe('parseArgs', () => {
     it('parses all CLI arguments', () => {
-      const args = ['--test-case', 'tests/cases/test-22a.json', '--env-config', 'env-config.json', '--credentials', 'creds.json'];
+      const args = ['--test-case', 'tests/cases/test-22a.json', '--env-config', 'env-config.json', '--credentials', 'creds.json', '--mode', 'manipulated', '--env', 'DEV'];
       const result = parseArgs(args);
       expect(result.testCase).toBe('tests/cases/test-22a.json');
       expect(result.envConfig).toBe('env-config.json');
       expect(result.credentials).toBe('creds.json');
+      expect(result.mode).toBe('manipulated');
+      expect(result.env).toBe('DEV');
     });
 
-    it('returns null for missing arguments', () => {
+    it('returns null for missing arguments and defaults mode to standard', () => {
       const result = parseArgs([]);
       expect(result.testCase).toBeNull();
       expect(result.envConfig).toBeNull();
       expect(result.credentials).toBeNull();
+      expect(result.mode).toBe('standard');
+      expect(result.env).toBeNull();
     });
 
     it('handles partial arguments', () => {
@@ -54,15 +58,17 @@ describe('smtp-sender', () => {
       expect(result.testCase).toBe('test.json');
       expect(result.envConfig).toBeNull();
       expect(result.credentials).toBeNull();
+      expect(result.mode).toBe('standard');
     });
   });
 
   describe('loadCredentials', () => {
-    it('loads valid credentials', () => {
+    it('loads valid credentials in standard mode (default)', () => {
       const credPath = path.join(tmpDir, 'credentials.json');
       fs.writeFileSync(credPath, JSON.stringify({
-        manipulatedSmtp: {
-          host: 'smtp.example.com',
+        senderEmail: 'tester@example.com',
+        standardSmtp: {
+          host: 'smtp.gmail.com',
           port: 587,
           secure: false,
           auth: { username: 'user', password: 'pass' },
@@ -71,9 +77,32 @@ describe('smtp-sender', () => {
 
       const result = loadCredentials(credPath);
       expect(result.error).toBeNull();
-      expect(result.smtp.host).toBe('smtp.example.com');
+      expect(result.smtp.host).toBe('smtp.gmail.com');
       expect(result.smtp.port).toBe(587);
       expect(result.smtp.auth.username).toBe('user');
+      expect(result.senderEmail).toBe('tester@example.com');
+    });
+
+    it('loads manipulated credentials when mode is manipulated', () => {
+      const credPath = path.join(tmpDir, 'credentials.json');
+      fs.writeFileSync(credPath, JSON.stringify({
+        senderEmail: 'tester@example.com',
+        standardSmtp: {
+          host: 'smtp.gmail.com',
+          port: 587,
+          auth: { username: 'user', password: 'pass' },
+        },
+        manipulatedSmtp: {
+          host: 'smtp.custom.com',
+          port: 465,
+          auth: { username: 'custom-user', password: 'custom-pass' },
+        },
+      }));
+
+      const result = loadCredentials(credPath, 'manipulated');
+      expect(result.error).toBeNull();
+      expect(result.smtp.host).toBe('smtp.custom.com');
+      expect(result.smtp.port).toBe(465);
     });
 
     it('returns error for missing file', () => {
@@ -82,39 +111,42 @@ describe('smtp-sender', () => {
       expect(result.smtp).toBeNull();
     });
 
-    it('returns error for missing manipulatedSmtp section', () => {
+    it('returns error for missing standardSmtp section', () => {
       const credPath = path.join(tmpDir, 'credentials.json');
-      fs.writeFileSync(credPath, JSON.stringify({}));
+      fs.writeFileSync(credPath, JSON.stringify({ senderEmail: 'test@example.com' }));
 
       const result = loadCredentials(credPath);
-      expect(result.error).toContain('Missing manipulatedSmtp section');
+      expect(result.error).toContain('Missing standardSmtp section');
       expect(result.smtp).toBeNull();
     });
 
-    it('returns error for missing host', () => {
+    it('returns error for missing host in standardSmtp', () => {
       const credPath = path.join(tmpDir, 'credentials.json');
       fs.writeFileSync(credPath, JSON.stringify({
-        manipulatedSmtp: { port: 587, auth: { username: 'u', password: 'p' } },
+        senderEmail: 'test@example.com',
+        standardSmtp: { port: 587, auth: { username: 'u', password: 'p' } },
       }));
 
       const result = loadCredentials(credPath);
       expect(result.error).toContain('host is required');
     });
 
-    it('returns error for missing port', () => {
+    it('returns error for missing port in standardSmtp', () => {
       const credPath = path.join(tmpDir, 'credentials.json');
       fs.writeFileSync(credPath, JSON.stringify({
-        manipulatedSmtp: { host: 'smtp.example.com', auth: { username: 'u', password: 'p' } },
+        senderEmail: 'test@example.com',
+        standardSmtp: { host: 'smtp.gmail.com', auth: { username: 'u', password: 'p' } },
       }));
 
       const result = loadCredentials(credPath);
       expect(result.error).toContain('port is required');
     });
 
-    it('returns error for missing auth', () => {
+    it('returns error for missing auth in standardSmtp', () => {
       const credPath = path.join(tmpDir, 'credentials.json');
       fs.writeFileSync(credPath, JSON.stringify({
-        manipulatedSmtp: { host: 'smtp.example.com', port: 587 },
+        senderEmail: 'test@example.com',
+        standardSmtp: { host: 'smtp.gmail.com', port: 587 },
       }));
 
       const result = loadCredentials(credPath);
@@ -166,24 +198,43 @@ describe('smtp-sender', () => {
   });
 
   describe('resolveSenderAddress', () => {
-    it('returns primary email from first environment', () => {
+    it('prefers senderEmail from credentials when provided', () => {
+      const config = {
+        environments: {
+          DEV: { emailAddresses: { primary: 'dev-cases@example.com' } },
+        },
+      };
+      expect(resolveSenderAddress(config, 'me@example.com')).toBe('me@example.com');
+    });
+
+    it('falls back to primary email from first environment when no senderEmail', () => {
       const config = {
         environments: {
           DEV: { emailAddresses: { primary: 'dev-cases@example.com' } },
           QA: { emailAddresses: { primary: 'qa-cases@example.com' } },
         },
       };
-      expect(resolveSenderAddress(config)).toBe('dev-cases@example.com');
+      expect(resolveSenderAddress(config, null)).toBe('dev-cases@example.com');
     });
 
     it('returns fallback when no environments exist', () => {
-      expect(resolveSenderAddress({})).toBe('test-sender@example.com');
-      expect(resolveSenderAddress({ environments: {} })).toBe('test-sender@example.com');
+      expect(resolveSenderAddress({}, null)).toBe('test-sender@example.com');
+      expect(resolveSenderAddress({ environments: {} }, null)).toBe('test-sender@example.com');
     });
   });
 
   describe('resolveRecipientAddress', () => {
-    it('returns primary email from first environment', () => {
+    it('returns primary email from specified environment', () => {
+      const config = {
+        environments: {
+          DEV: { emailAddresses: { primary: 'dev-cases@example.com' } },
+          QA: { emailAddresses: { primary: 'qa-cases@example.com' } },
+        },
+      };
+      expect(resolveRecipientAddress(config, 'QA')).toBe('qa-cases@example.com');
+    });
+
+    it('falls back to first environment when envName not specified', () => {
       const config = {
         environments: {
           DEV: { emailAddresses: { primary: 'dev-cases@example.com' } },

@@ -13,7 +13,7 @@
     "inlineImages": [],
     "fromNameOverride": null
   },
-  "sendMethod": "eml",
+  "sendMethod": "smtp-manipulated",
   "preconditions": [],
   "verification": {
     "type": "no-case-created",

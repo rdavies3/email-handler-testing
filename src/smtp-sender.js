@@ -8,10 +8,10 @@ const { loadJsonFile } = require('./config-loader');
 /**
  * Parse CLI arguments for smtp-sender.
  * @param {string[]} args - Process argv (from index 2)
- * @returns {{ testCase: string|null, envConfig: string|null, credentials: string|null }}
+ * @returns {{ testCase: string|null, envConfig: string|null, credentials: string|null, mode: string, env: string|null }}
  */
 function parseArgs(args) {
-  const result = { testCase: null, envConfig: null, credentials: null };
+  const result = { testCase: null, envConfig: null, credentials: null, mode: 'standard', env: null };
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--test-case':
@@ -23,6 +23,12 @@ function parseArgs(args) {
       case '--credentials':
         result.credentials = args[++i] || null;
         break;
+      case '--mode':
+        result.mode = args[++i] || 'standard';
+        break;
+      case '--env':
+        result.env = args[++i] || null;
+        break;
     }
   }
   return result;
@@ -31,31 +37,39 @@ function parseArgs(args) {
 /**
  * Load and validate SMTP credentials from credentials.json.
  * @param {string} credentialsPath - Path to credentials.json
- * @returns {{ smtp: object|null, error: string|null }}
+ * @param {string} [mode='standard'] - Which SMTP config to load: 'standard' or 'manipulated'
+ * @returns {{ smtp: object|null, senderEmail: string|null, error: string|null }}
  */
-function loadCredentials(credentialsPath) {
+function loadCredentials(credentialsPath, mode) {
+  const smtpMode = mode || 'standard';
   const result = loadJsonFile(credentialsPath);
   if (result.error) {
-    return { smtp: null, error: result.error };
+    return { smtp: null, senderEmail: null, error: result.error };
   }
 
   const creds = result.data;
-  if (!creds.manipulatedSmtp || typeof creds.manipulatedSmtp !== 'object') {
-    return { smtp: null, error: 'Missing manipulatedSmtp section in credentials' };
+
+  // Resolve sender email
+  const senderEmail = creds.senderEmail || null;
+
+  // Determine which SMTP block to use
+  const blockName = smtpMode === 'manipulated' ? 'manipulatedSmtp' : 'standardSmtp';
+  if (!creds[blockName] || typeof creds[blockName] !== 'object') {
+    return { smtp: null, senderEmail, error: `Missing ${blockName} section in credentials` };
   }
 
-  const smtp = creds.manipulatedSmtp;
+  const smtp = creds[blockName];
   if (!smtp.host || typeof smtp.host !== 'string') {
-    return { smtp: null, error: 'manipulatedSmtp.host is required and must be a string' };
+    return { smtp: null, senderEmail, error: `${blockName}.host is required and must be a string` };
   }
   if (smtp.port === undefined || typeof smtp.port !== 'number') {
-    return { smtp: null, error: 'manipulatedSmtp.port is required and must be a number' };
+    return { smtp: null, senderEmail, error: `${blockName}.port is required and must be a number` };
   }
   if (!smtp.auth || !smtp.auth.username || !smtp.auth.password) {
-    return { smtp: null, error: 'manipulatedSmtp.auth with username and password is required' };
+    return { smtp: null, senderEmail, error: `${blockName}.auth with username and password is required` };
   }
 
-  return { smtp, error: null };
+  return { smtp, senderEmail, error: null };
 }
 
 /**
@@ -85,12 +99,20 @@ function loadEnvConfig(envConfigPath) {
 }
 
 /**
- * Resolve the sender email address from env-config.
- * Uses the first environment's primary email as the envelope sender.
+ * Resolve the sender email address.
+ * In standard mode, uses senderEmail from credentials.
+ * In manipulated mode, falls back to first environment's primary email.
  * @param {object} envConfig - Parsed env-config object
+ * @param {string|null} senderEmail - The senderEmail from credentials (if available)
  * @returns {string} The sender email address
  */
-function resolveSenderAddress(envConfig) {
+function resolveSenderAddress(envConfig, senderEmail) {
+  // Prefer explicit senderEmail from credentials
+  if (senderEmail) {
+    return senderEmail;
+  }
+
+  // Fallback: use first environment's primary email
   if (!envConfig.environments) {
     return 'test-sender@example.com';
   }
@@ -98,7 +120,6 @@ function resolveSenderAddress(envConfig) {
   if (envNames.length === 0) {
     return 'test-sender@example.com';
   }
-  // Use the first environment's primary email as the test sender
   const firstEnv = envConfig.environments[envNames[0]];
   if (firstEnv && firstEnv.emailAddresses && firstEnv.emailAddresses.primary) {
     return firstEnv.emailAddresses.primary;
@@ -108,14 +129,25 @@ function resolveSenderAddress(envConfig) {
 
 /**
  * Resolve the recipient email address from env-config.
- * Uses the first environment's primary email as the recipient.
+ * Uses the specified environment's primary email, or falls back to first environment.
  * @param {object} envConfig - Parsed env-config object
+ * @param {string|null} [envName] - Target environment name (DEV, QA, UAT)
  * @returns {string} The recipient email address
  */
-function resolveRecipientAddress(envConfig) {
+function resolveRecipientAddress(envConfig, envName) {
   if (!envConfig.environments) {
     return 'recipient@example.com';
   }
+
+  // If envName specified and exists, use that
+  if (envName && envConfig.environments[envName]) {
+    const env = envConfig.environments[envName];
+    if (env.emailAddresses && env.emailAddresses.primary) {
+      return env.emailAddresses.primary;
+    }
+  }
+
+  // Fallback: first environment
   const envNames = Object.keys(envConfig.environments);
   if (envNames.length === 0) {
     return 'recipient@example.com';
@@ -125,6 +157,36 @@ function resolveRecipientAddress(envConfig) {
     return firstEnv.emailAddresses.primary;
   }
   return 'recipient@example.com';
+}
+
+/**
+ * Resolve a template email address variable against the env config.
+ * Supports: {{org_wide_email}}, {{secondary_email}}, {{tertiary_email}}, {{primary_email}}
+ * If the value is not a template, returns it unchanged.
+ * @param {string} address - The address (possibly a template variable)
+ * @param {object} envConfig - Parsed env-config object
+ * @param {string|null} envName - Target environment name
+ * @returns {string} The resolved email address
+ */
+function resolveTemplateAddress(address, envConfig, envName) {
+  if (!address || !address.startsWith('{{')) return address;
+
+  const env = (envConfig && envConfig.environments && envName)
+    ? envConfig.environments[envName]
+    : null;
+
+  switch (address) {
+    case '{{org_wide_email}}':
+      return (env && env.orgWideEmailAddress) || (env && env.emailAddresses && env.emailAddresses.primary) || address;
+    case '{{primary_email}}':
+      return (env && env.emailAddresses && env.emailAddresses.primary) || address;
+    case '{{secondary_email}}':
+      return (env && env.emailAddresses && env.emailAddresses.secondary) || address;
+    case '{{tertiary_email}}':
+      return (env && env.emailAddresses && env.emailAddresses.tertiary) || address;
+    default:
+      return address;
+  }
 }
 
 /**
@@ -153,10 +215,12 @@ function buildFromHeader(fromNameOverride, senderAddress) {
  * @returns {object} Nodemailer transport instance
  */
 function createTransport(smtpConfig) {
+  // Port 465 always uses implicit TLS regardless of the secure flag in config
+  const isSecure = smtpConfig.port === 465 ? true : (smtpConfig.secure || false);
   const transportOptions = {
     host: smtpConfig.host,
     port: smtpConfig.port,
-    secure: smtpConfig.secure || false,
+    secure: isSecure,
     auth: {
       user: smtpConfig.auth.username,
       pass: smtpConfig.auth.password,
@@ -180,32 +244,49 @@ function createTransport(smtpConfig) {
 }
 
 /**
- * Send an email via the Manipulated SMTP server.
+ * Send an email via SMTP (standard or manipulated).
  * @param {object} options
- * @param {object} options.smtpConfig - Manipulated SMTP credentials
+ * @param {object} options.smtpConfig - SMTP credentials (standard or manipulated)
  * @param {object} options.testCase - Parsed test case JSON
  * @param {object} options.envConfig - Parsed env-config object
+ * @param {string|null} [options.senderEmail] - Explicit sender email from credentials
+ * @param {string|null} [options.envName] - Target environment name for recipient resolution
  * @returns {Promise<{ success: boolean, messageId?: string, error?: string, message?: string }>}
  */
-async function sendEmail({ smtpConfig, testCase, envConfig }) {
-  const senderAddress = resolveSenderAddress(envConfig);
+async function sendEmail({ smtpConfig, testCase, envConfig, senderEmail, envName }) {
+  const senderAddress = resolveSenderAddress(envConfig, senderEmail || null);
+  // Envelope sender must be the SMTP auth user (what the server allows)
+  const envelopeSender = smtpConfig.auth.username || senderAddress;
+
+  // Handle multi-email test cases (e.g., duplicate detection tests)
+  if (Array.isArray(testCase.emails) && testCase.emails.length > 0) {
+    return sendMultipleEmails({ smtpConfig, testCase, envConfig, senderAddress, envelopeSender, envName });
+  }
+
   const emailProps = testCase.emailProperties || {};
 
   // Resolve recipient — use test case 'to' or fall back to env-config
-  let recipient = emailProps.to || resolveRecipientAddress(envConfig);
+  let recipient = emailProps.to || resolveRecipientAddress(envConfig, envName || null);
   // Replace template variables if present
   if (recipient.includes('{{primary_email}}')) {
-    recipient = resolveRecipientAddress(envConfig);
+    recipient = resolveRecipientAddress(envConfig, envName || null);
   }
 
-  // Build the From header based on fromNameOverride
+  // Build the From header based on fromNameOverride or explicit from address
   const fromNameOverride = emailProps.fromNameOverride;
-  const fromHeader = buildFromHeader(fromNameOverride, senderAddress);
+  let fromAddress = senderAddress;
+  // If emailProperties.from is specified, resolve it and override the sender
+  if (emailProps.from) {
+    fromAddress = resolveTemplateAddress(emailProps.from, envConfig, envName);
+  }
+  const fromHeader = buildFromHeader(fromNameOverride, fromAddress);
 
   // Build subject (replace template variables)
   let subject = emailProps.subject || '';
+  let generatedTimestamp = null;
   if (subject.includes('{{timestamp}}')) {
-    subject = subject.replace(/\{\{timestamp\}\}/g, Date.now().toString());
+    generatedTimestamp = Date.now().toString();
+    subject = subject.replace(/\{\{timestamp\}\}/g, generatedTimestamp);
   }
 
   // Build mail options
@@ -214,7 +295,7 @@ async function sendEmail({ smtpConfig, testCase, envConfig }) {
     to: recipient,
     subject: subject,
     envelope: {
-      from: senderAddress,
+      from: envelopeSender,
       to: recipient,
     },
   };
@@ -243,10 +324,82 @@ async function sendEmail({ smtpConfig, testCase, envConfig }) {
 
   try {
     const info = await transport.sendMail(mailOptions);
-    return { success: true, messageId: info.messageId };
+    const result = { success: true, messageId: info.messageId, subject: subject };
+    if (generatedTimestamp) {
+      result.timestamp = generatedTimestamp;
+    }
+    return result;
   } finally {
     transport.close();
   }
+}
+
+/**
+ * Send multiple emails for test cases that use the 'emails' array pattern.
+ * Supports per-email fromAddress overrides and sendDelay between emails.
+ */
+async function sendMultipleEmails({ smtpConfig, testCase, envConfig, senderAddress, envelopeSender, envName }) {
+  const emails = testCase.emails;
+  const sendDelay = (testCase.sendDelay || 10) * 1000; // default 10s
+  const transport = createTransport(smtpConfig);
+  const results = [];
+
+  // Generate a single timestamp for the batch (used in all subjects)
+  const generatedTimestamp = Date.now().toString();
+
+  try {
+    for (let i = 0; i < emails.length; i++) {
+      const emailProps = emails[i];
+
+      // Resolve recipient
+      let recipient = emailProps.to || resolveRecipientAddress(envConfig, envName || null);
+      if (recipient.includes('{{primary_email}}')) {
+        recipient = resolveRecipientAddress(envConfig, envName || null);
+      }
+
+      // Resolve From address (supports per-email fromAddress override)
+      let fromAddress = senderAddress;
+      if (emailProps.fromAddress) {
+        fromAddress = resolveTemplateAddress(emailProps.fromAddress, envConfig, envName);
+      }
+
+      const fromHeader = buildFromHeader(emailProps.fromNameOverride, fromAddress);
+
+      // Build subject with timestamp
+      let subject = emailProps.subject || '';
+      if (subject.includes('{{timestamp}}')) {
+        subject = subject.replace(/\{\{timestamp\}\}/g, generatedTimestamp);
+      }
+
+      const mailOptions = {
+        from: fromHeader,
+        to: recipient,
+        subject: subject,
+        envelope: { from: envelopeSender, to: recipient },
+      };
+
+      if (emailProps.textBody !== undefined) mailOptions.text = emailProps.textBody;
+      if (emailProps.htmlBody !== undefined) mailOptions.html = emailProps.htmlBody;
+
+      const info = await transport.sendMail(mailOptions);
+      results.push({ messageId: info.messageId, subject: subject, from: fromAddress });
+
+      // Wait between sends (except after the last one)
+      if (i < emails.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, sendDelay));
+      }
+    }
+  } finally {
+    transport.close();
+  }
+
+  return {
+    success: true,
+    emailCount: results.length,
+    timestamp: generatedTimestamp,
+    subject: results[0].subject,
+    results: results,
+  };
 }
 
 /**
@@ -299,9 +452,10 @@ async function main() {
 
   const credentialsPath = args.credentials || 'credentials.json';
   const envConfigPath = args.envConfig || 'env-config.json';
+  const mode = args.mode || 'standard';
 
   // Load credentials
-  const credResult = loadCredentials(credentialsPath);
+  const credResult = loadCredentials(credentialsPath, mode);
   if (credResult.error) {
     const errorOutput = { success: false, error: 'auth_failure', message: credResult.error };
     process.stdout.write(JSON.stringify(errorOutput) + '\n');
@@ -330,6 +484,8 @@ async function main() {
       smtpConfig: credResult.smtp,
       testCase: tcResult.testCase,
       envConfig: envResult.config,
+      senderEmail: credResult.senderEmail,
+      envName: args.env,
     });
     process.stdout.write(JSON.stringify(result) + '\n');
     process.exit(0);

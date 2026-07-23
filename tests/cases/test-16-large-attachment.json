@@ -1,8 +1,8 @@
 {
   "id": "16",
-  "name": "Large attachment stored as ContentVersion",
+  "name": "Large attachment stored as Attachment record",
   "category": "attachments",
-  "description": "Verifies that an email with a large attachment (~5.5MB) creates a Case and stores the attachment as a ContentVersion record with the correct file size",
+  "description": "Verifies that an email with a large attachment (~5.5MB) creates a Case and stores the attachment as an Attachment record with the correct file size",
   "emailProperties": {
     "to": "{{primary_email}}",
     "subject": "Test-16-{{timestamp}}",
@@ -40,12 +40,11 @@
         ]
       },
       {
-        "object": "ContentVersion",
-        "filter": "FirstPublishLocationId IN (SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = '{{caseId}}')",
+        "object": "Attachment",
+        "filter": "ParentId = '{{caseId}}'",
         "assertions": [
-          { "field": "Title", "operator": "equals", "value": "test-large" },
-          { "field": "ContentSize", "operator": "equals", "value": 5767168 },
-          { "field": "FileExtension", "operator": "equals", "value": "pdf" }
+          { "field": "Name", "operator": "equals", "value": "test-large.pdf" },
+          { "field": "BodyLength", "operator": "equals", "value": 5767168 }
         ]
       }
     ]

@@ -2,7 +2,7 @@
   "id": "19",
   "name": "Accepted attachment type on reply stored with no rejection",
   "category": "attachments",
-  "description": "Verifies that when a reply to an existing Case includes an attachment with a valid file type, the attachment is stored as a ContentVersion record linked to the existing Case, no rejection email is sent, and no new Case is created",
+  "description": "Verifies that when a reply to an existing Case includes an attachment with a valid file type, the attachment is stored as an Attachment record linked to the EmailMessage, no rejection email is sent, and no new Case is created",
   "emailProperties": {
     "to": "{{primary_email}}",
     "subject": "Re: Test-19-{{timestamp}} {{thread_id}}",
@@ -25,8 +25,7 @@
       "type": "create-case",
       "fields": {
         "Subject": "Test-19-{{timestamp}}",
-        "Status": "New",
-        "Origin": "Email"
+        "Status": "New"
       }
     }
   ],
@@ -42,26 +41,25 @@
         ]
       },
       {
-        "object": "ContentVersion",
-        "filter": "FirstPublishLocationId IN (SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = '{{caseId}}')",
+        "object": "Attachment",
+        "filter": "ParentId = '{{caseId}}'",
         "assertions": [
-          { "field": "Title", "operator": "equals", "value": "test-small" },
-          { "field": "ContentSize", "operator": "equals", "value": 524288 },
-          { "field": "FileExtension", "operator": "equals", "value": "txt" }
+          { "field": "Name", "operator": "equals", "value": "test-small.txt" },
+          { "field": "BodyLength", "operator": "equals", "value": 524288 }
         ]
       },
       {
         "object": "EmailMessage",
         "filter": "ParentId = '{{caseId}}' AND Status = '3'",
         "assertions": [
-          { "field": "Id", "operator": "count_equals", "value": 0 }
+          { "field": "recordCount", "operator": "equals", "value": 0 }
         ]
       },
       {
         "object": "Case",
         "filter": "Subject LIKE '%Test-19-{{timestamp}}%'",
         "assertions": [
-          { "field": "Id", "operator": "count_equals", "value": 1 }
+          { "field": "recordCount", "operator": "equals", "value": 1 }
         ]
       }
     ]

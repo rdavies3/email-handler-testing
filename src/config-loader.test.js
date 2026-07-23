@@ -76,6 +76,16 @@ const validEnvConfig = {
 };
 
 const validCredentials = {
+  senderEmail: 'tester@example.com',
+  standardSmtp: {
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      username: 'tester@example.com',
+      password: 'app-password-123',
+    },
+  },
   manipulatedSmtp: {
     host: 'smtp.example.com',
     port: 587,
@@ -277,44 +287,77 @@ describe('validateCredentials', () => {
     expect(errors).toContain('Credentials must be a JSON object');
   });
 
-  it('returns error when manipulatedSmtp is missing', () => {
-    const errors = validateCredentials({});
-    expect(errors).toContain('Missing required field: manipulatedSmtp');
+  it('returns error when senderEmail is missing', () => {
+    const errors = validateCredentials({ standardSmtp: validCredentials.standardSmtp });
+    expect(errors.some(e => e.includes('senderEmail'))).toBe(true);
   });
 
-  it('returns error when host is missing', () => {
+  it('returns error when standardSmtp is missing', () => {
+    const errors = validateCredentials({ senderEmail: 'test@example.com' });
+    expect(errors).toContain('Missing required field: standardSmtp');
+  });
+
+  it('returns error when standardSmtp host is missing', () => {
     const errors = validateCredentials({
-      manipulatedSmtp: { port: 587, auth: { username: 'u', password: 'p' } },
+      senderEmail: 'test@example.com',
+      standardSmtp: { port: 587, auth: { username: 'u', password: 'p' } },
     });
     expect(errors.some(e => e.includes('host'))).toBe(true);
   });
 
-  it('returns error when port is missing', () => {
+  it('returns error when standardSmtp port is missing', () => {
     const errors = validateCredentials({
-      manipulatedSmtp: { host: 'smtp.example.com', auth: { username: 'u', password: 'p' } },
+      senderEmail: 'test@example.com',
+      standardSmtp: { host: 'smtp.gmail.com', auth: { username: 'u', password: 'p' } },
     });
     expect(errors.some(e => e.includes('port'))).toBe(true);
   });
 
-  it('returns error when auth section is missing', () => {
+  it('returns error when standardSmtp auth section is missing', () => {
     const errors = validateCredentials({
-      manipulatedSmtp: { host: 'smtp.example.com', port: 587 },
+      senderEmail: 'test@example.com',
+      standardSmtp: { host: 'smtp.gmail.com', port: 587 },
     });
     expect(errors.some(e => e.includes('auth'))).toBe(true);
   });
 
-  it('returns error when auth.username is missing', () => {
+  it('returns error when standardSmtp auth.username is missing', () => {
     const errors = validateCredentials({
-      manipulatedSmtp: { host: 'smtp.example.com', port: 587, auth: { password: 'p' } },
+      senderEmail: 'test@example.com',
+      standardSmtp: { host: 'smtp.gmail.com', port: 587, auth: { password: 'p' } },
     });
     expect(errors.some(e => e.includes('username'))).toBe(true);
   });
 
-  it('returns error when auth.password is missing', () => {
+  it('returns error when standardSmtp auth.password is missing', () => {
     const errors = validateCredentials({
-      manipulatedSmtp: { host: 'smtp.example.com', port: 587, auth: { username: 'u' } },
+      senderEmail: 'test@example.com',
+      standardSmtp: { host: 'smtp.gmail.com', port: 587, auth: { username: 'u' } },
     });
     expect(errors.some(e => e.includes('password'))).toBe(true);
+  });
+
+  it('does not require manipulatedSmtp by default', () => {
+    const creds = { senderEmail: 'test@example.com', standardSmtp: validCredentials.standardSmtp };
+    const errors = validateCredentials(creds);
+    expect(errors).toEqual([]);
+  });
+
+  it('validates manipulatedSmtp when present', () => {
+    const creds = {
+      senderEmail: 'test@example.com',
+      standardSmtp: validCredentials.standardSmtp,
+      manipulatedSmtp: { host: 'smtp.test.com' }, // missing port and auth
+    };
+    const errors = validateCredentials(creds);
+    expect(errors.some(e => e.includes('manipulatedSmtp.port'))).toBe(true);
+    expect(errors.some(e => e.includes('manipulatedSmtp.auth'))).toBe(true);
+  });
+
+  it('requires manipulatedSmtp when requireManipulated option is set', () => {
+    const creds = { senderEmail: 'test@example.com', standardSmtp: validCredentials.standardSmtp };
+    const errors = validateCredentials(creds, { requireManipulated: true });
+    expect(errors.some(e => e.includes('manipulatedSmtp'))).toBe(true);
   });
 });
 
@@ -329,6 +372,8 @@ describe('resolveConfig', () => {
     expect(resolved.timing.maxRetries).toBe(5);
     expect(resolved.timing.retryInterval).toBe(10);
     expect(resolved.smtp.manipulated.host).toBe('smtp.example.com');
+    expect(resolved.smtp.standard.host).toBe('smtp.gmail.com');
+    expect(resolved.senderEmail).toBe('tester@example.com');
   });
 
   it('resolves QA environment correctly', () => {

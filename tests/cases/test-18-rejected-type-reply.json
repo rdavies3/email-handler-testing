@@ -2,7 +2,7 @@
   "id": "18",
   "name": "Rejected attachment type on reply sends rejection email",
   "category": "attachments",
-  "description": "Verifies that when a reply to an existing Case includes an attachment with a file type not in the accepted types list, a rejection email is sent to the sender and no ContentVersion record is created",
+  "description": "Verifies that when a reply to an existing Case includes an attachment with a file type not in the accepted types list, a rejection email is sent to the sender and no Attachment record is created",
   "emailProperties": {
     "to": "{{primary_email}}",
     "subject": "Re: Test-18-{{timestamp}} {{thread_id}}",
@@ -25,8 +25,7 @@
       "type": "create-case",
       "fields": {
         "Subject": "Test-18-{{timestamp}}",
-        "Status": "New",
-        "Origin": "Email"
+        "Status": "New"
       }
     }
   ],
@@ -42,10 +41,10 @@
         ]
       },
       {
-        "object": "ContentVersion",
-        "filter": "FirstPublishLocationId IN (SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = '{{caseId}}')",
+        "object": "Attachment",
+        "filter": "ParentId = '{{caseId}}'",
         "assertions": [
-          { "field": "Id", "operator": "count_equals", "value": 0 }
+          { "field": "recordCount", "operator": "equals", "value": 0 }
         ]
       },
       {

@@ -25,7 +25,7 @@
       "fromAddress": "{{tertiary_email}}"
     }
   ],
-  "sendMethod": "eml",
+  "sendMethod": "smtp-manipulated",
   "sendDelay": 10,
   "preconditions": [],
   "verification": {

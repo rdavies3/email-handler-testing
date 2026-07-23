@@ -36,8 +36,30 @@ This is an automated testing framework for a Salesforce Email-to-Case handler (`
 ## Dependencies
 
 - **Runtime**: SF CLI (v2+), Node.js (v18+), macOS built-in tools (bash, zsh, curl, grep, sed, awk)
-- **Node.js packages**: `nodemailer` (SMTP sending)
+- **Node.js packages**: `nodemailer` (SMTP sending), `pdfkit` (PDF report generation)
 - **Dev packages**: `vitest` (unit testing), `fast-check` (property-based testing)
+
+## Environment Email Convention
+
+Email-to-Case routing addresses follow a predictable pattern per environment. The agent should derive them automatically without prompting the user each time.
+
+**Pattern:** `{env}_sandbox@asu.edu` (primary), `{env}_sandbox1@asu.edu` (secondary), `{env}_sandbox2@asu.edu` (tertiary).
+
+| Environment | Primary | Secondary | Tertiary | Org-Wide Email |
+|-------------|---------|-----------|----------|----------------|
+| DEV | dev_sandbox@asu.edu | dev_sandbox1@asu.edu | dev_sandbox2@asu.edu | dev_sandbox@asu.edu |
+| QA | qa_sandbox@asu.edu | qa_sandbox1@asu.edu | qa_sandbox2@asu.edu | qa_sandbox@asu.edu |
+| UAT | uat_sandbox@asu.edu | uat_sandbox1@asu.edu | uat_sandbox2@asu.edu | uat_sandbox@asu.edu |
+
+The org-wide email address (used for loop-prevention in test 10) is always the same as the primary address.
+
+## SF CLI Org Alias Mapping
+
+| Environment | SF CLI Alias | Instance URL | Lightning URL (for reports) |
+|-------------|-------------|--------------|----------------------------|
+| DEV | EntQA | asu--dev.sandbox.my.salesforce.com | https://asu--dev.sandbox.lightning.force.com |
+| QA | entQaSB | asu--qa.sandbox.my.salesforce.com | https://asu--qa.sandbox.lightning.force.com |
+| UAT | entUatSB | asu--uat.sandbox.my.salesforce.com | https://asu--uat.sandbox.lightning.force.com |
 
 ## Important Notes
 
@@ -55,6 +77,11 @@ You are guiding a Salesforce Admin through setting up the email-handler-testing 
 **Important:** Do NOT reimplement configuration validation logic. Use the existing modules:
 - `src/config-resolver.js` — resolves config file paths from `.config-path` pointer
 - `src/config-loader.js` — loads and validates configuration JSON against schema
+
+**Credentials Safety:** Never collect passwords, tokens, or SMTP credentials via chat. When credentials are needed:
+1. Create the file with placeholder values
+2. Open the file in the user's editor for them to fill in directly
+3. Instruct the user to save, then validate the file programmatically
 
 ---
 
@@ -229,20 +256,66 @@ Build the JSON object and write it to the External_Config_Directory:
 
 ### 3.4 Build `credentials.json` Interactively
 
-Use the template at `credentials.template.json` as a reference. Only tests 22 and 23 use SMTP sending, so this is optional for most users.
+Use the template at `credentials.template.json` as a reference. The credentials file has three sections:
 
-Ask: "Do you plan to run tests 22 and 23 (manipulated SMTP from-name tests)? These require SMTP server credentials."
+1. **`senderEmail`** (required) — the user's personal email address used as the "From" for standard test sends
+2. **`standardSmtp`** (required) — SMTP config for sending most tests via ASU Gmail (smtp.gmail.com)
+3. **`manipulatedSmtp`** (optional) — SMTP config for tests 22/23 that manipulate the From Name
 
-- **If yes:** Prompt for SMTP details:
-  - Host (e.g., `smtp.example.com`)
-  - Port (default: 587)
-  - Secure (true/false, default: false)
-  - Username
-  - Password
+**Credentials Safety:** Never collect passwords, tokens, or SMTP credentials via chat. Create the file with placeholders and open it in the editor for the user to fill in directly.
 
-- **If no:** Create a minimal credentials file with placeholder values and note that the user can fill these in later.
+#### Step A: Determine sender email
 
-Write the file to the External_Config_Directory.
+Ask: "What personal email address should test emails be sent FROM? (This is your ASU email, e.g., `rdavies3@asu.edu`)"
+
+Store the answer as `senderEmail`.
+
+#### Step B: Set up Gmail App Password for Standard SMTP
+
+The standard SMTP uses `smtp.gmail.com` with a Gmail App Password. App Passwords require Google 2-Step Verification (2SV) to be enabled on the account. Because ASU uses SSO with its own 2FA, Google's 2SV is not enabled by default — users must turn it on manually before they can create App Passwords.
+
+Guide the user through both steps:
+
+1. **Enable Google 2-Step Verification on the ASU Google account:**
+   ```zsh
+   open "https://myaccount.google.com/signinoptions/two-step-verification"
+   ```
+   Tell the user:
+   > "Google App Passwords require Google's own 2-Step Verification to be enabled on your account. This is separate from ASU's SSO/Duo 2FA — it won't change how you normally log in. Open this page and follow the prompts to turn on 2-Step Verification. You'll need to add a phone number or security key as a second factor. Once it shows '2-Step Verification is ON', come back here."
+
+   **If enrollment is blocked:** If the page says 2SV is managed by the organization or isn't available, the Workspace admin has disabled enrollment. In that case, the user needs to contact ASU IT to request 2SV be allowed for their account, or use an alternative sending approach.
+
+2. **Create an App Password (on the correct Google account):**
+   ```zsh
+   open "https://myaccount.google.com/apppasswords"
+   ```
+   Tell the user:
+   > "**Important:** If you have multiple Google accounts signed in (e.g., a personal Gmail and your ASU account), make sure you're creating the App Password on your **ASU Google account** — not your personal one. Check the profile icon in the top-right corner of the Google page to confirm you're on the correct account before proceeding."
+   >
+   > "Create a new App Password — name it something like 'Email Testing'. Copy the 16-character password that's generated (spaces don't matter, it works with or without them)."
+
+3. Create the credentials file with the `senderEmail` and `standardSmtp` section pre-filled (host: `smtp.gmail.com`, port: 587, username: same as senderEmail) but leave the password as a placeholder.
+
+4. Open the file in the editor for the user to paste their App Password:
+   ```zsh
+   open "<configDir>/credentials.json"
+   ```
+   Tell the user: "Replace `REPLACE_WITH_GMAIL_APP_PASSWORD` with the App Password you just copied, then save."
+
+#### Step C: Manipulated SMTP (optional)
+
+Ask: "Do you plan to run tests 22 and 23 (From Name manipulation tests)? These require a separate SMTP server."
+
+- **If yes:** Add `manipulatedSmtp` with placeholders and instruct the user to fill it in via the editor.
+- **If no:** Omit the `manipulatedSmtp` block entirely; the file is valid without it.
+
+#### Step D: Wait and validate
+
+After the user confirms they've saved the file, validate:
+
+```zsh
+node src/config-loader.js --env DEV --config "<configDir>/env-config.json" --credentials "<configDir>/credentials.json"
+```
 
 ### 3.5 Validate Generated Configuration
 
@@ -333,6 +406,8 @@ All commands are macOS zsh-compatible.
 | Validate config resolution | `node src/config-resolver.js --validate` |
 | Resolve config paths | `node src/config-resolver.js --paths` |
 | Validate config loading | `node src/config-loader.js --env <ENV> --config <path> --credentials <path>` |
+| Open 2-Step Verification | `open "https://myaccount.google.com/signinoptions/two-step-verification"` |
+| Open App Passwords | `open "https://myaccount.google.com/apppasswords"` |
 
 ---
 
@@ -475,36 +550,20 @@ If the test has `preconditions` (e.g., creating a Case that must exist beforehan
   sf data create record --sobject Contact --values "FirstName='<first>' LastName='<last>' Email='<email>'" --target-org <orgAlias> --json
   ```
 
-### Step 3.3: Determine Send Method and Execute
+### Step 3.3: Send Email via SMTP
 
-Check the `sendMethod` field in the test case JSON:
-
-#### If `sendMethod` is `"eml"`:
-
-Generate the .eml file using the existing eml-generator module:
+All tests are sent via the `smtp-sender.js` module. The mode is determined by the test category:
+- Tests 22/23 (contact-matching): use `--mode manipulated`
+- All other tests: use `--mode standard` (default)
 
 ```zsh
-node src/eml-generator.js --test-case tests/cases/test-<id>-<name>.json --env-config <configPath> --output generated-emails/
+node src/smtp-sender.js --test-case tests/cases/test-<id>-<name>.json --env-config <configPath> --credentials <credentialsPath> --env <ENV_NAME> [--mode manipulated]
 ```
 
-Then instruct the user:
-
-> I've generated the .eml file at `generated-emails/<filename>.eml`.
->
-> Please open this file (double-click opens in Mail.app) and send it. Let me know when you've sent it.
-
-Wait for the user to confirm they sent the email.
-
-#### If `sendMethod` is `"smtp"`:
-
-Send directly via the SMTP sender module:
-
-```zsh
-node src/smtp-sender.js --test-case tests/cases/test-<id>-<name>.json --env-config <configPath> --credentials <credentialsPath>
-```
-
-- If this exits 0: email was sent successfully.
-- If this fails: report the SMTP error and offer to retry or skip.
+- If this exits 0: email was sent successfully. Parse the JSON output for `messageId`.
+- If this fails with exit code 2 (auth_failure): report the SMTP credential error and suggest checking the App Password.
+- If this fails with exit code 1 (connection_timeout): suggest checking network connectivity.
+- If this fails with exit code 3 (send_failure): report the error and offer to retry or skip.
 
 ### Step 3.4: Wait for Salesforce Processing
 
@@ -572,9 +631,13 @@ If the user says "continue" and there are more tests, proceed to the next test. 
 
 ---
 
-## Phase 4: Session Summary
+## Phase 4: Session Summary & PDF Report
 
-When the session ends (either all tests completed or user chose to stop), display a summary:
+When the session ends (either all tests completed or user chose to stop), **always generate a PDF report** as the final step.
+
+### Step 4.1: Display In-Chat Summary
+
+Show a brief inline summary:
 
 > ## Session Summary
 >
@@ -587,6 +650,55 @@ When the session ends (either all tests completed or user chose to stop), displa
 > | 02 | Empty body creates case with subject | PASS ✓ |
 > | 15 | Small attachment stored as ContentVersion | FAIL ✗ |
 > | ... | ... | ... |
+
+### Step 4.2: Generate PDF Report (Default)
+
+After displaying the in-chat summary, **always** generate a downloadable PDF report:
+
+1. **Write session results to JSON** in the format expected by `report-generator.js`:
+   ```zsh
+   # Write to generated-emails/session-<YYYY-MM-DD>.json
+   ```
+
+   The JSON schema:
+   ```json
+   {
+     "environment": "DEV",
+     "orgAlias": "EntQA",
+     "instanceUrl": "https://asu--dev.sandbox.lightning.force.com",
+     "date": "2026-07-23",
+     "duration": "~25 minutes",
+     "results": [
+       {
+         "id": "02",
+         "name": "Test name",
+         "status": "PASS|FAIL|ERROR",
+         "caseId": "500W400000lBe7AIAS",
+         "caseNumber": "35820995",
+         "note": "optional context"
+       }
+     ],
+     "rootCauses": [
+       { "category": "Category Name", "description": "Explanation", "tests": "05, 06, 15-20" }
+     ]
+   }
+   ```
+
+   Field notes:
+   - **`instanceUrl`**: The Lightning base URL for the target org. Used to generate clickable Case links in the PDF. Derive from the SF CLI org alias mapping (e.g., DEV → `https://asu--dev.sandbox.lightning.force.com`).
+   - **`caseId`**: The 18-character Salesforce Case ID found during verification. Set to `null` if no Case was found or the test errored before querying.
+   - **`caseNumber`**: The human-readable Case Number. Set to `null` if unavailable.
+   - The PDF renders each `caseId` as a clickable hyperlink to `{instanceUrl}/lightning/r/Case/{caseId}/view`.
+
+2. **Generate the PDF**:
+   ```zsh
+   node src/report-generator.js --input generated-emails/session-<date>.json --output generated-emails/test-report-<ENV>-<YYYY-MM-DD>.pdf
+   ```
+
+3. **Report the file location** to the user:
+   > PDF report generated: `generated-emails/test-report-DEV-2026-07-23.pdf`
+
+### Step 4.3: Offer Next Actions
 
 If there were failures, offer:
 
@@ -602,8 +714,14 @@ This agent orchestrates the following existing Node.js modules. Do NOT reimpleme
 |--------|---------|-----------|
 | `src/config-resolver.js` | Locate external config files | `node src/config-resolver.js --paths` or `--validate` |
 | `src/config-loader.js` | Load and validate environment config | `node src/config-loader.js --env <ENV> --config <path> --credentials <path>` |
-| `src/eml-generator.js` | Generate .eml test files | `node src/eml-generator.js --test-case <tc> --env-config <ec> --output <dir>` |
-| `src/smtp-sender.js` | Send test emails via SMTP | `node src/smtp-sender.js --test-case <tc> --env-config <ec> --credentials <cr>` |
+| `src/eml-generator.js` | Generate .eml test files (deprecated — use smtp-sender) | `node src/eml-generator.js --test-case <tc> --env-config <ec> --output <dir>` |
+| `src/smtp-sender.js` | Send test emails via SMTP | `node src/smtp-sender.js --test-case <tc> --env-config <ec> --credentials <cr> --env <ENV> [--mode standard\|manipulated]` |
+| `src/report-generator.js` | Generate PDF session report | `node src/report-generator.js --input <session.json> --output <report.pdf>` |
+
+**smtp-sender modes:**
+- `--mode standard` (default): Sends via `standardSmtp` config (smtp.gmail.com). Used for all tests except 22/23.
+- `--mode manipulated`: Sends via `manipulatedSmtp` config. Used for tests 22/23 (From Name manipulation).
+- `--env <ENV>`: Specifies which environment's primary email to send TO (DEV, QA, UAT).
 
 For Salesforce queries and record operations, use the SF CLI directly:
 
@@ -619,9 +737,10 @@ For Salesforce queries and record operations, use the SF CLI directly:
 
 - All shell commands must be **macOS zsh-compatible**. Do not use bash-only syntax.
 - Test case files are in `tests/cases/test-XX-description.json` format.
-- Generated .eml files go to `generated-emails/` (gitignored).
-- Tests 22 and 23 (contact-matching) use `sendMethod: "smtp"` — all other tests use `sendMethod: "eml"`.
-- Each test uses a `{{timestamp}}` in the subject for isolation. Generate a fresh timestamp (Unix epoch seconds) at the start of each test.
+- Generated .eml files go to `generated-emails/` (gitignored, legacy — no longer primary send method).
+- **All tests are now sent via SMTP.** Tests 22/23 use `--mode manipulated`; all others use `--mode standard` (default).
+- The `sendMethod` field in test case JSON is informational. The agent always uses `smtp-sender.js` with the appropriate `--mode`.
+- Each test uses a `{{timestamp}}` in the subject for isolation. Generate a fresh timestamp (Unix epoch milliseconds) at the start of each test.
 - The `verification.type` field hints at what the test expects:
   - `case-created`: A new Case should exist
   - `no-case-created` / `no-new-case`: No Case should be created (or count should remain the same)

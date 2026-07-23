@@ -116,11 +116,53 @@ function validateEnvConfig(config, envName) {
 }
 
 /**
- * Validate credentials structure.
- * @param {object} credentials - Parsed credentials object
+ * Validate an individual SMTP block structure.
+ * @param {object} smtp - SMTP config object
+ * @param {string} blockName - Name of the block for error messages
  * @returns {string[]} Array of error messages (empty if valid)
  */
-function validateCredentials(credentials) {
+function validateSmtpBlock(smtp, blockName) {
+  const errors = [];
+
+  if (!smtp || typeof smtp !== 'object') {
+    errors.push(`${blockName} must be an object`);
+    return errors;
+  }
+
+  if (!smtp.host || typeof smtp.host !== 'string') {
+    errors.push(`${blockName}.host is required and must be a string`);
+  }
+
+  if (smtp.port === undefined || smtp.port === null) {
+    errors.push(`${blockName}.port is required`);
+  } else if (typeof smtp.port !== 'number') {
+    errors.push(`${blockName}.port must be a number`);
+  }
+
+  if (!smtp.auth || typeof smtp.auth !== 'object') {
+    errors.push(`${blockName}.auth is required and must be an object`);
+  } else {
+    if (!smtp.auth.username || typeof smtp.auth.username !== 'string') {
+      errors.push(`${blockName}.auth.username is required and must be a string`);
+    }
+    if (!smtp.auth.password || typeof smtp.auth.password !== 'string') {
+      errors.push(`${blockName}.auth.password is required and must be a string`);
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Validate credentials structure.
+ * Requires senderEmail and standardSmtp. manipulatedSmtp is optional.
+ * @param {object} credentials - Parsed credentials object
+ * @param {object} [options] - Validation options
+ * @param {boolean} [options.requireManipulated] - Whether to require manipulatedSmtp (default false)
+ * @returns {string[]} Array of error messages (empty if valid)
+ */
+function validateCredentials(credentials, options) {
+  const opts = options || {};
   const errors = [];
 
   if (!credentials || typeof credentials !== 'object') {
@@ -128,38 +170,23 @@ function validateCredentials(credentials) {
     return errors;
   }
 
-  if (!credentials.manipulatedSmtp || typeof credentials.manipulatedSmtp !== 'object') {
-    errors.push('Missing required field: manipulatedSmtp');
-    return errors;
+  // senderEmail is required
+  if (!credentials.senderEmail || typeof credentials.senderEmail !== 'string') {
+    errors.push('senderEmail is required and must be a string (your From email address for standard sends)');
   }
 
-  const smtp = credentials.manipulatedSmtp;
-  const requiredFields = ['host', 'port'];
-
-  for (const field of requiredFields) {
-    if (smtp[field] === undefined || smtp[field] === null) {
-      errors.push(`manipulatedSmtp.${field} is required`);
-    }
-  }
-
-  if (smtp.host !== undefined && typeof smtp.host !== 'string') {
-    errors.push('manipulatedSmtp.host must be a string');
-  }
-
-  if (smtp.port !== undefined && typeof smtp.port !== 'number') {
-    errors.push('manipulatedSmtp.port must be a number');
-  }
-
-  // Validate auth section
-  if (!smtp.auth || typeof smtp.auth !== 'object') {
-    errors.push('manipulatedSmtp.auth is required and must be an object');
+  // standardSmtp is required
+  if (!credentials.standardSmtp || typeof credentials.standardSmtp !== 'object') {
+    errors.push('Missing required field: standardSmtp');
   } else {
-    if (!smtp.auth.username || typeof smtp.auth.username !== 'string') {
-      errors.push('manipulatedSmtp.auth.username is required and must be a string');
-    }
-    if (!smtp.auth.password || typeof smtp.auth.password !== 'string') {
-      errors.push('manipulatedSmtp.auth.password is required and must be a string');
-    }
+    errors.push(...validateSmtpBlock(credentials.standardSmtp, 'standardSmtp'));
+  }
+
+  // manipulatedSmtp is optional unless explicitly required
+  if (credentials.manipulatedSmtp) {
+    errors.push(...validateSmtpBlock(credentials.manipulatedSmtp, 'manipulatedSmtp'));
+  } else if (opts.requireManipulated) {
+    errors.push('Missing required field: manipulatedSmtp (needed for tests 22/23)');
   }
 
   return errors;
@@ -188,8 +215,10 @@ function resolveConfig(config, credentials, envName) {
       retryInterval: (config.timing && config.timing.retryInterval) || 10,
     },
     categories: config.categories || {},
+    senderEmail: credentials.senderEmail || null,
     smtp: {
-      manipulated: credentials.manipulatedSmtp,
+      standard: credentials.standardSmtp || null,
+      manipulated: credentials.manipulatedSmtp || null,
     },
   };
 }
@@ -278,6 +307,7 @@ function main() {
 module.exports = {
   loadJsonFile,
   validateEnvConfig,
+  validateSmtpBlock,
   validateCredentials,
   resolveConfig,
   parseArgs,
