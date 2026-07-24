@@ -1,0 +1,82 @@
+{
+  "id": "01",
+  "name": "Marketing Cloud RMM email creates Case with correct routing",
+  "category": "sfmc",
+  "description": "Verifies that emails sent through Marketing Cloud RMM with differently formatted From addresses create Cases correctly. Tests that Initial Request Sent To Addresses shows the formatted @asu.edu address, email body is in Case Description, and auto-response is not triggered (CAR for MC address has no auto-response configured).",
+  "sendMethod": "sfmc",
+  "sfmcVariants": [
+    {
+      "id": "A",
+      "description": "Simple oneword sender format",
+      "fromAddress": "oneword@email.com",
+      "fromName": "Test Oneword",
+      "subscriberAttributes": {}
+    },
+    {
+      "id": "B",
+      "description": "First.lastname sender format",
+      "fromAddress": "first.lastname@email.com",
+      "fromName": "First Lastname",
+      "subscriberAttributes": {}
+    },
+    {
+      "id": "C",
+      "description": "Sandbox address as sender (loop prevention check)",
+      "fromAddress": "{{primary_email}}",
+      "fromName": "QA Sandbox",
+      "subscriberAttributes": {}
+    }
+  ],
+  "emailProperties": {
+    "to": "{{primary_email}}",
+    "subject": "ET Salesforce Platform Team",
+    "textBody": "This is a Marketing Cloud RMM test email.",
+    "htmlBody": "<p>This is a Marketing Cloud RMM test email.</p>"
+  },
+  "preconditions": [
+    {
+      "type": "ensure-contacts",
+      "note": "Ensure the 9 test contacts from the MC report exist with valid email addresses. See: https://asu.my.salesforce.com/00O6T0000068wFd"
+    },
+    {
+      "type": "ensure-car",
+      "note": "CAR for primary_email must NOT have auto-response configured (prevents loop between PROD MC and sandbox)"
+    }
+  ],
+  "verification": {
+    "type": "case-created",
+    "queries": [
+      {
+        "object": "Case",
+        "filter": "Subject = 'ET Salesforce Platform Team' AND CreatedDate >= {{startTime}}",
+        "assertions": [
+          { "field": "Id", "operator": "not_null" },
+          { "field": "Initial_Request_Sent_To_Addresses__c", "operator": "contains", "value": "@asu.edu" },
+          { "field": "Description", "operator": "not_null" }
+        ]
+      },
+      {
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}' AND Incoming = true",
+        "assertions": [
+          { "field": "Id", "operator": "not_null" }
+        ]
+      }
+    ],
+    "additionalChecks": [
+      {
+        "description": "Verify no auto-response was sent (CAR has no template configured)",
+        "object": "EmailMessage",
+        "filter": "ParentId = '{{caseId}}' AND Incoming = false",
+        "assertions": [
+          { "field": "recordCount", "operator": "equals", "value": 0 }
+        ]
+      },
+      {
+        "description": "Verify sender only received one auto-response (if applicable) and reply doesn't retrigger",
+        "manual": true,
+        "note": "Reply to the auto-response and verify it doesn't re-send"
+      }
+    ]
+  }
+}
