@@ -2,10 +2,31 @@
 
 Automated testing framework for validating a Salesforce Email-to-Case handler (`CaseInboundEmailHandler.cls`). The framework sends test emails via SMTP, orchestrates their delivery to Salesforce sandbox environments, and verifies expected outcomes via SF CLI SOQL queries.
 
+## Getting Started
+
+This project is designed to be set up interactively with the Kiro AI agent. Open the project in Kiro and use the following prompt to get started:
+
+> **"Help me set up the email handler testing framework."**
+
+The agent will walk you through:
+1. Checking prerequisites (Node.js, SF CLI)
+2. Authenticating to your Salesforce sandbox(es)
+3. Choosing where to store config files (Keybase or local)
+4. Creating your environment and credentials configuration
+5. Validating everything works
+
+Once set up, run the full test suite with:
+
+> **"Run all tests against DEV."**
+
+The rest of this README covers how things work under the hood — useful if you want to understand the architecture, troubleshoot, or run things manually.
+
+---
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
+- [Quick Start (Manual)](#quick-start-manual)
 - [Configuration](#configuration)
 - [Salesforce Configuration](#salesforce-configuration)
 - [Credentials Setup](#credentials-setup)
@@ -54,7 +75,7 @@ npm install
 
 ---
 
-## Quick Start
+## Quick Start (Manual)
 
 ```bash
 # 1. Clone the repository
@@ -68,9 +89,9 @@ npm install
 # The Kiro setup agent walks you through this interactively
 
 # 4. Authenticate SF CLI to your sandbox(es)
-sf org login web --alias EntDevSB       # DEV sandbox
-sf org login web --alias entQaSB        # QA sandbox
-sf org login web --alias entUatSB       # UAT sandbox
+sf org login web --alias EntDevSB --instance-url https://asu--dev.sandbox.my.salesforce.com/
+sf org login web --alias EntQaSB --instance-url https://asu--qa.sandbox.my.salesforce.com/
+sf org login web --alias EntUatSB --instance-url https://asu--uat.sandbox.my.salesforce.com/
 
 # 5. Run tests interactively via Kiro test execution agent
 # Or run a single test directly:
@@ -84,11 +105,20 @@ node src/smtp-sender.js --test-case tests/cases/test-04-text-body.json \
 
 ## Configuration
 
-Configuration files are stored **outside** the repository on an encrypted volume to protect credentials. A pointer file (`.config-path`) tells the framework where to find them.
+Configuration files are stored **outside** the repository to protect credentials. A pointer file (`.config-path`) tells the framework where to find them.
 
-### External Config Directory
+### Config Directory Options
 
-The default location is `/Volumes/Keybase/private/<username>/`. The directory contains:
+You can store your config files wherever makes sense for your workflow:
+
+| Option | Path | Best for |
+|--------|------|----------|
+| **Keybase (recommended)** | `/Volumes/Keybase/private/<username>/` | Encrypted, syncs across machines |
+| **Local user config** | `~/.config/email-handler-testing/` | Simple local setup, no extra tools |
+
+Both options keep credentials out of the repo. Keybase is nice if you code on multiple machines — the config follows you. Otherwise `~/.config/` works perfectly.
+
+### Config Directory Contents
 
 | File | Purpose |
 |------|---------|
@@ -98,8 +128,12 @@ The default location is `/Volumes/Keybase/private/<username>/`. The directory co
 ### Setting Up the Config Pointer
 
 ```bash
-# Point the framework to your config directory
+# Option A: Keybase (encrypted, portable across machines)
 node src/config-resolver.js --set "/Volumes/Keybase/private/yourname/"
+
+# Option B: Local ~/.config directory
+mkdir -p ~/.config/email-handler-testing
+node src/config-resolver.js --set ~/.config/email-handler-testing/
 
 # Validate the pointer and config files
 node src/config-resolver.js --validate
@@ -130,11 +164,11 @@ Each environment (DEV, QA, UAT) has:
 
 #### SF CLI Org Alias Mapping
 
-| Environment | Alias | Instance |
-|-------------|-------|----------|
-| DEV | EntQA | asu--dev.sandbox.my.salesforce.com |
-| QA | entQaSB | asu--qa.sandbox.my.salesforce.com |
-| UAT | entUatSB | asu--uat.sandbox.my.salesforce.com |
+| Environment | Alias | Login URL |
+|-------------|-------|-----------|
+| DEV | EntDevSB | https://asu--dev.sandbox.my.salesforce.com/ |
+| QA | EntQaSB | https://asu--qa.sandbox.my.salesforce.com/ |
+| UAT | EntUatSB | https://asu--uat.sandbox.my.salesforce.com/ |
 
 ### Validating Configuration
 
@@ -155,13 +189,13 @@ node src/config-loader.js --env DEV \
 ### Authenticating SF CLI
 
 ```bash
-# Authenticate to each sandbox
-sf org login web --alias EntQA         # Opens browser for DEV login
-sf org login web --alias entQaSB       # Opens browser for QA login
-sf org login web --alias entUatSB      # Opens browser for UAT login
+# Authenticate to each sandbox (use the instance URL for your sandbox)
+sf org login web --alias EntDevSB --instance-url https://asu--dev.sandbox.my.salesforce.com/
+sf org login web --alias EntQaSB --instance-url https://asu--qa.sandbox.my.salesforce.com/
+sf org login web --alias EntUatSB --instance-url https://asu--uat.sandbox.my.salesforce.com/
 
 # Verify authentication
-sf org display --target-org EntQA --json
+sf org display --target-org EntDevSB --json
 ```
 
 ### Email-to-Case Routing
@@ -180,11 +214,11 @@ Several tests require specific Contacts:
 # Create Contacts for contact-matching tests (22/23)
 sf data create record --sobject Contact \
   --values "FirstName='Test' LastName='Contact Alpha' Email='salesforce@carl.me'" \
-  --target-org EntQA
+  --target-org EntDevSB
 
 sf data create record --sobject Contact \
   --values "FirstName='Test' LastName='Contact Beta' Email='salesforce@carl.me'" \
-  --target-org EntQA
+  --target-org EntDevSB
 ```
 
 ### Org-Wide Email Address
@@ -274,7 +308,7 @@ The `timestamp` and `subject` fields allow immediate SOQL verification without g
 
 ```bash
 sf data query --query "SELECT Id, Subject FROM Case WHERE Subject = 'Test-04-1784847763576'" \
-  --target-org EntQA --json
+  --target-org EntDevSB --json
 ```
 
 ### Interactive Test Execution (Kiro Agent)
@@ -317,7 +351,7 @@ After sending an email, the framework queries Salesforce to verify the handler p
 
 ```bash
 sf data query --query "SELECT Id, Subject, CaseNumber FROM Case WHERE Subject = 'Test-XX-{{timestamp}}'" \
-  --target-org EntQA --json
+  --target-org EntDevSB --json
 ```
 
 ### Attachment Verification
@@ -365,10 +399,10 @@ Salesforce processing takes 15-60 seconds. The framework uses:
 
 ```bash
 # Re-authenticate
-sf org login web --alias EntQA
+sf org login web --alias EntDevSB --instance-url https://asu--dev.sandbox.my.salesforce.com/
 
 # Verify
-sf org display --target-org EntQA --json
+sf org display --target-org EntDevSB --json
 ```
 
 ### SMTP Connection Timeout
@@ -393,7 +427,9 @@ cat .config-path
 # Verify the path is accessible
 node src/config-resolver.js --validate
 
-# Common issue: Keybase volume not mounted
+# Common issues:
+# - Keybase users: volume not mounted (open Keybase app first)
+# - Local users: ~/.config/email-handler-testing/ directory doesn't exist
 ```
 
 ### Attachments Not Found in Verification
@@ -402,10 +438,10 @@ If SOQL returns no attachments, ensure you're querying the **Case** as ParentId:
 
 ```bash
 # First get the Case ID
-sf data query --query "SELECT Id FROM Case WHERE Subject = 'Test-15-...'" --target-org EntQA --json
+sf data query --query "SELECT Id FROM Case WHERE Subject = 'Test-15-...'" --target-org EntDevSB --json
 
 # Then query Attachments on the Case (NOT the EmailMessage)
-sf data query --query "SELECT Id, Name, BodyLength FROM Attachment WHERE ParentId = '<CaseId>'" --target-org EntQA --json
+sf data query --query "SELECT Id, Name, BodyLength FROM Attachment WHERE ParentId = '<CaseId>'" --target-org EntDevSB --json
 ```
 
 ### Body-Size Tests Processing Slowly
@@ -522,7 +558,7 @@ The session JSON (`generated-emails/session-YYYY-MM-DD.json`) captures all test 
 ```json
 {
   "environment": "DEV",
-  "orgAlias": "EntQA",
+  "orgAlias": "EntDevSB",
   "instanceUrl": "https://asu--dev.sandbox.lightning.force.com",
   "date": "2026-07-23",
   "duration": "~40 minutes",

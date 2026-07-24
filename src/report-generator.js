@@ -157,13 +157,18 @@ function generateReport(sessionData, outputPath) {
   const instanceUrl = sessionData.instanceUrl || '';
 
   sessionData.results.forEach((result, index) => {
+    // Calculate row height based on note text wrapping
+    const note = result.note || '';
+    const noteLineHeight = 9;
+    const noteLines = note ? Math.ceil(doc.font('Helvetica').fontSize(7.5).widthOfString(note) / (cols.note - 4)) : 1;
+    const rowHeight = Math.max(15, noteLines * noteLineHeight + 6);
+
     // Check if we need a new page
-    if (tableY > 540) {
+    if (tableY + rowHeight > 540) {
       doc.addPage();
       tableY = 40;
     }
 
-    const rowHeight = 15;
     const bgColor = index % 2 === 0 ? '#f8f9fa' : '#ffffff';
     doc.rect(tableX, tableY, pageWidth, rowHeight).fill(bgColor);
 
@@ -196,7 +201,6 @@ function generateReport(sessionData, outputPath) {
     if (caseId && instanceUrl) {
       const caseUrl = buildCaseUrl(instanceUrl, caseId);
       doc.fillColor('#1a73e8').font('Helvetica');
-      // Render the case ID as a clickable link
       const idText = caseId.slice(0, 18);
       doc.text(idText, rx, textY, {
         width: cols.caseId,
@@ -213,10 +217,9 @@ function generateReport(sessionData, outputPath) {
     }
     rx += cols.caseId;
 
-    // Notes
+    // Notes — wrapped text
     doc.font('Helvetica').fillColor('#666666');
-    const note = (result.note || '').slice(0, 35);
-    doc.text(note, rx, textY, { width: cols.note, lineBreak: false });
+    doc.text(note, rx, textY, { width: cols.note - 4, lineBreak: true, height: rowHeight - 6 });
 
     doc.fillColor('#000000');
     tableY += rowHeight;

@@ -57,9 +57,9 @@ The org-wide email address (used for loop-prevention in test 10) is always the s
 
 | Environment | SF CLI Alias | Instance URL | Lightning URL (for reports) |
 |-------------|-------------|--------------|----------------------------|
-| DEV | EntQA | asu--dev.sandbox.my.salesforce.com | https://asu--dev.sandbox.lightning.force.com |
-| QA | entQaSB | asu--qa.sandbox.my.salesforce.com | https://asu--qa.sandbox.lightning.force.com |
-| UAT | entUatSB | asu--uat.sandbox.my.salesforce.com | https://asu--uat.sandbox.lightning.force.com |
+| DEV | EntDevSB | asu--dev.sandbox.my.salesforce.com | https://asu--dev.sandbox.lightning.force.com |
+| QA | EntQaSB | asu--qa.sandbox.my.salesforce.com | https://asu--qa.sandbox.lightning.force.com |
+| UAT | EntUatSB | asu--uat.sandbox.my.salesforce.com | https://asu--uat.sandbox.lightning.force.com |
 
 ## Important Notes
 
@@ -205,9 +205,13 @@ Set up the external configuration directory and create the config files interact
 ### 3.1 Determine External Config Directory
 
 Ask the user where they'd like to store configuration files. Explain:
-> "Configuration files contain sensitive credentials, so we store them outside this repository on an encrypted volume. The default location is `/Volumes/Keybase/private/rogowar/` but you can choose any directory."
+> "Configuration files contain sensitive credentials, so we store them outside this repository. Two common options:
+> - **Keybase** (`/Volumes/Keybase/private/<username>/`) — encrypted and syncs across machines
+> - **Local** (`~/.config/email-handler-testing/`) — simple, no extra tools needed
+>
+> Where would you like to store yours?"
 
-Prompt for the path. If they accept the default or provide a custom path, verify the directory is accessible:
+Prompt for the path. If they accept one of the defaults or provide a custom path, verify the directory is accessible:
 
 ```zsh
 test -d "<path>" && echo "accessible" || echo "not found"
@@ -664,7 +668,7 @@ After displaying the in-chat summary, **always** generate a downloadable PDF rep
    ```json
    {
      "environment": "DEV",
-     "orgAlias": "EntQA",
+     "orgAlias": "EntDevSB",
      "instanceUrl": "https://asu--dev.sandbox.lightning.force.com",
      "date": "2026-07-23",
      "duration": "~25 minutes",
